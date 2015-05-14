@@ -1,0 +1,30 @@
+html, body {
+  margin: 0;
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  font-size: 1rem;
+  background: linear-gradient(to bottom,  #1e5799 0%,#207cca 34%,#7db9e8 100%);
+}
+
+#joystickArea {
+  height: 100%;
+  width: 100%;
+}
+
+#info {
+  width: 100%;
+  position: absolute;
+  top:0;
+  color: #dddddd;
+}
+
+#info > .left {
+  float: left;
+}
+
+#info > .right {
+  float: right;
+}
