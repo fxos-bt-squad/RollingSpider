@@ -14,8 +14,10 @@
     "name": "Mozilla",
     "url": "http://mozilla.com"
   },
-  "type": "privileged",
-  "permissions": {},
+  "type": "certified",
+  "permissions": {
+    "bluetooth":{}
+  },
   "installs_allowed_from": [
     "*"
   ],
