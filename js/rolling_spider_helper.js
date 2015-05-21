@@ -1,34 +1,16 @@
-function RollingSpiderHelper(controller) {
-  this._controller = controller;
-  this._initEvents();
-  this._adapters = [];
+function RollingSpiderHelper() {
+  this._manager = navigator.mozBluetooth;
+  this.connected = false;
+  this._characteristics = {};
+  this._counter = 1;
 }
 
-RollingSpiderHelper.prototype = evt({
-  _initEvents: function InitEvents() {
-    this._controller.addObserver('adapteradded', this,
-      this._onAdapterAdded);
-    this._controller.addObserver('adapterremoved', this,
-      this._onAdapterRemoved);
-  },
-
-  _onAdapterAdded: function OnAdapterAdded(adapter) {
-    console.log(adapter);
-    this._adapters.push(adapter);
-  },
-
-  _onAdapterRemoved: function OnAdapterRemoved(address) {
-  },
-
-  cleanup: function Cleanup() {
-    this._controller.removeObserver('adapteradded', this,
-      this._onAdapterAdded);
-    this._controller.removeObserver('adapterremoved', this,
-      this._onAdapterRemoved);
-  },
-
+RollingSpiderHelper.prototype = {
   startScan: function StartScan(){
-    this._adapters[0].startLeScan([]).then(function onResolve(handle) {
+    if(!this._adapter){
+      this._adapter = this._manager.defaultAdapter;
+    }
+    this._adapter.startLeScan([]).then(function onResolve(handle) {
       console.log('startScan resolve [' + JSON.stringify(handle) + ']');
       this._leScanHandle = handle;
       this._leScanHandle.addEventListener('devicefound',
@@ -41,7 +23,7 @@ RollingSpiderHelper.prototype = evt({
   },
 
   stopScan: function StopScan(){
-    this._adapters[0].stopLeScan(this._leScanHandle).then(function onResolve() {
+    this._adapter.stopLeScan(this._leScanHandle).then(function onResolve() {
       this._leScanHandle = null;
       console.log('stopScan resolve');
       return Promise.resolve();
@@ -53,29 +35,85 @@ RollingSpiderHelper.prototype = evt({
   },
 
   _onGattDeviceFound: function onGattDevceFound(evt){
-    if(evt.device.name.indexOf('RS_') === 0){
+    if(evt.device.name.indexOf('RS_') === 0 && !this.connected){
+      this.connected = true;
       console.log('Rolling Spider FOUND!!!!!');
       this._device = evt.device;
       this._gatt = this._device.gatt;
-      this.connect().then(function onResolve(value){
-        console.log(value);
-        if(value === 'connected'){
-          this.stopScan();
-        }
-      }.bind(this), function onReject(reason){
-        console.log(reason);
-      }.bind(this));
+      this.connect();
+      this.stopScan();
     }
   },
 
-  connect: function (){
-    this._gatt.connect().then(function onResolve(value) {
-      console.log("gatt client connect: resolved with value: [" + value + "]");
+  connect: function Connect(){
+    this._gatt.connect().then(function onResolve() {
+      console.log('connect resolve');
+      this.discoverServices();
+    }.bind(this), function onReject(reason) {
+      console.log('connect reject: ' + reason);
+    }.bind(this));
+  },
+
+  takeOff: function TakeOff(){
+    var characteristic =
+      this._characteristics['9a66fa0b-0800-9191-11e4-012d1540cb8e'];
+
+    // 4, (byte)mSettingsCounter, 2, 0, 1, 0
+    var buffer = new ArrayBuffer(6);
+    var array = new Uint8Array(buffer);
+    array.set([4, this._counter++, 2, 0, 1, 0]);
+    characteristic.writeValue(buffer).then(function onResolve(){
+      console.log('takeoff success');
+    }, function onReject(){
+      console.log('takeoff failed');
+    });
+  },
+
+  landing: function Landing(){
+    var characteristic =
+      this._characteristics['9a66fa0b-0800-9191-11e4-012d1540cb8e'];
+
+    // 4, (byte)mSettingsCounter, 2, 0, 3, 0
+    var buffer = new ArrayBuffer(6);
+    var array = new Uint8Array(buffer);
+    array.set([4, this._counter++, 2, 0, 3, 0]);
+    characteristic.writeValue(buffer).then(function onResolve(){
+      console.log('landing success');
+    }, function onReject(){
+      console.log('landing failed');
+    });
+  },
+
+  discoverServices: function DiscoverServices(){
+    return this._gatt.discoverServices().then(function onResolve(value) {
+      this._gatt.oncharacteristicchanged =
+      function onCharacteristicChanged(evt) {
+        var characteristic = evt.characteristic;
+        console.log("The value of characteristic (uuid:",
+          characteristic.uuid, ") changed to", characteristic.value);
+      };
+
+      console.log('gatt client discoverServices:' +
+        'resolved with value: [' +value + ']');
+      console.log('gatt client found ' + this._gatt.services.length +
+        'services in total');
+      var services = this._gatt.services;
+      for(var i = 0; i<services.length; i++){
+        var characteristics = services[i].characteristics;
+        console.log('service[' + i + ']' + characteristics.length +
+          'characteristics in total');
+        for(var j=0; j<characteristics.length; j++){
+          var characteristic = characteristics[j];
+          var uuid = characteristic.uuid;
+          this._characteristics[uuid] = characteristic;
+          //characteristic.startNotifications();
+        }
+      }
       return Promise.resolve(value);
     }.bind(this), function onReject(reason) {
-      console.log("gatt client connect: rejected with this reason: [" + reason + "]");
+      console.log('discoverServices reject: [' + reason + ']');
       return Promise.reject(reason);
     }.bind(this));
   }
-});
+};
 
