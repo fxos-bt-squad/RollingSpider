@@ -4,7 +4,7 @@ function RollingSpiderHelper(controller) {
   this._adapters = [];
 }
 
-RollingSpiderHelper.prototype = {
+RollingSpiderHelper.prototype = evt({
   _initEvents: function InitEvents() {
     this._controller.addObserver('adapteradded', this,
       this._onAdapterAdded);
@@ -56,5 +56,5 @@ RollingSpiderHelper.prototype = {
       this.stopScan();
     }
   }
-}
+});
 
