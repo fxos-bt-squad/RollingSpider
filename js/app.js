@@ -1,4 +1,4 @@
-(function (){
+window.onload = function (){
   console.log("touchscreen is", VirtualJoystick.touchScreenAvailable() ? "available" : "not available");
 
   var joystickLeft  = new VirtualJoystick({
@@ -50,7 +50,7 @@
     }
     return true
   });
-  
+
   function showDebugInfo(){
     var eLeft = document.querySelector('#info > .left');
     eLeft.innerHTML = 'Ldx:'+joystickLeft.deltaX() +
@@ -73,4 +73,20 @@
     showDebugInfo();
   }, 1/30 * 1000);
 
-})();
+  var controller = new BluetoothController();
+  var rsHelper = new RollingSpiderHelper(controller);
+
+  var elConnect = document.getElementById('connect');
+  elConnect.scanningStatus = false;
+  elConnect.onclick = function (){
+    if(this.scanningStatus){
+      console.log('stop scanning');
+      this.scanningStatus = false;
+      rsHelper.stopScan();
+    } else {
+      console.log('start scanning');
+      this.scanningStatus = true;
+      rsHelper.startScan();
+    }
+  };
+};

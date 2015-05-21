@@ -28,3 +28,15 @@ body {
 #info > .right {
   float: right;
 }
+
+#toolbar {
+  width: 100%;
+  position: absolute;
+  bottom: 0;
+  color: #dddddd;
+}
+
+#toolbar > button {
+  height: 25px;
+  font-size: 1rem;
+}
