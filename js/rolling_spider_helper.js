@@ -33,8 +33,10 @@ RollingSpiderHelper.prototype = evt({
       this._leScanHandle = handle;
       this._leScanHandle.addEventListener('devicefound',
         this._onGattDeviceFound.bind(this));
+      return Promise.resolve(handle);
     }.bind(this), function onReject(reason) {
       console.log('startScan reject [' + JSON.stringify(reason) + ']');
+      return Promise.reject(reason);
     }.bind(this));
   },
 
@@ -42,9 +44,11 @@ RollingSpiderHelper.prototype = evt({
     this._adapters[0].stopLeScan(this._leScanHandle).then(function onResolve() {
       this._leScanHandle = null;
       console.log('stopScan resolve');
+      return Promise.resolve();
     }.bind(this), function onReject(reason) {
       console.log('stopScan reject');
       console.log(reason);
+      return Promise.reject(reason);
     }.bind(this));
   },
 
@@ -53,8 +57,25 @@ RollingSpiderHelper.prototype = evt({
       console.log('Rolling Spider FOUND!!!!!');
       this._device = evt.device;
       this._gatt = this._device.gatt;
-      this.stopScan();
+      this.connect().then(function onResolve(value){
+        console.log(value);
+        if(value === 'connected'){
+          this.stopScan();
+        }
+      }.bind(this), function onReject(reason){
+        console.log(reason);
+      }.bind(this));
     }
+  },
+
+  connect: function (){
+    this._gatt.connect().then(function onResolve(value) {
+      console.log("gatt client connect: resolved with value: [" + value + "]");
+      return Promise.resolve(value);
+    }.bind(this), function onReject(reason) {
+      console.log("gatt client connect: rejected with this reason: [" + reason + "]");
+      return Promise.reject(reason);
+    }.bind(this));
   }
 });
 
