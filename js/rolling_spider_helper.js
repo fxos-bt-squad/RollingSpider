@@ -1,3 +1,14 @@
+var CCCD_UUID = '00002902-0000-1000-8000-00805f9b34fb';
+
+function ab2str(buf) {
+  var result = '';
+  var array = new Uint8Array(buf);
+  for(var i = 0; i<array.length; i++){
+    result += Number(array[i]) + ',';
+  }
+  return result;
+}
+
 function RollingSpiderHelper() {
   this._manager = navigator.mozBluetooth;
   this.connected = false;
@@ -95,15 +106,51 @@ RollingSpiderHelper.prototype = evt({
     });
   },
 
+  enableNotification: function EnableNotification(characteristic){
+    characteristic.startNotifications().then(function onResolve(){
+      console.log('enableNotification for ' +
+        characteristic.uuid + ' success');
+    }, function onReject(reason){
+      console.log('enableNotification for ' +
+        characteristic.uuid + ' failed: ' + reason);
+    });
+    console.log(characteristic.descriptors);
+    for (var i = 0; i < characteristic.descriptors.length; i++) {
+      var descriptor = characteristic.descriptors[i];
+      console.log('Descriptor CCCD uuid:' + descriptor.uuid);
+      console.log('Descriptor CCCD value:' + descriptor.value);
+      if (descriptor.uuid === CCCD_UUID) {
+        console.log('CCCD found');
+        var buffer = new ArrayBuffer(2);
+        var array = new Uint8Array(buffer);
+        array.set([0x01, 0x00]);
+        descriptor.writeValue(buffer);
+      }
+    }
+  },
+
+  onCharacteristicChanged: function OnCharacteristicChanged(evt) {
+    var characteristic = evt.characteristic;
+    var value = characteristic.value;
+    console.log('The value of characteristic (uuid:' +
+      characteristic.uuid + ') changed to ' + ab2str(value));
+
+    switch(characteristic.uuid){
+      case '9a66fb0e-0800-9191-11e4-012d1540cb8e':
+        var eventList = ['fsLanded', 'fsTakingOff', 'fsHovering', 'fsUnknown', 'fsLanding', 'fsCutOff'];
+        var array = new Uint8Array(value);
+        this.fire(eventList[array[6]]);
+        break;
+      case '9a66fb0f-0800-9191-11e4-012d1540cb8e':
+        console.log('Battery: ' + ab2str(value));
+        break;
+    }
+  },
+
   discoverServices: function DiscoverServices() {
     this.fire('discovering-services');
     return this._gatt.discoverServices().then(function onResolve(value) {
-      this._gatt.oncharacteristicchanged =
-      function onCharacteristicChanged(evt) {
-        var characteristic = evt.characteristic;
-        console.log("The value of characteristic (uuid:",
-          characteristic.uuid, ") changed to", characteristic.value);
-      };
+      this._gatt.oncharacteristicchanged = this.onCharacteristicChanged.bind(this);
 
       console.log('gatt client discoverServices:' +
         'resolved with value: [' +value + ']');
@@ -118,9 +165,13 @@ RollingSpiderHelper.prototype = evt({
           var characteristic = characteristics[j];
           var uuid = characteristic.uuid;
           this._characteristics[uuid] = characteristic;
-          //characteristic.startNotifications();
+          console.log(uuid);
         }
       }
+      this.enableNotification(this.
+        _characteristics['9a66fb0e-0800-9191-11e4-012d1540cb8e']);
+      this.enableNotification(this.
+        _characteristics['9a66fb0f-0800-9191-11e4-012d1540cb8e']);
       this.fire('discovered-services');
       return Promise.resolve(value);
     }.bind(this), function onReject(reason) {
