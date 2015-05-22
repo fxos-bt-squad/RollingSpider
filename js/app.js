@@ -1,4 +1,4 @@
-window.onload = function (){
+window.onload = function () {
   console.log("touchscreen is", VirtualJoystick.touchScreenAvailable() ? "available" : "not available");
 
   var joystickLeft  = new VirtualJoystick({
@@ -77,7 +77,7 @@ window.onload = function (){
 
   var elConnect = document.getElementById('connect');
   elConnect.scanningStatus = false;
-  elConnect.onclick = function (){
+  elConnect.onclick = function () {
     if(this.scanningStatus){
       console.log('stop scanning');
       this.scanningStatus = false;
@@ -98,4 +98,18 @@ window.onload = function (){
   elLanding.onclick = function (){
     rsHelper.landing();
   };
+
+  var gotEvent = function (eventName) {
+    console.log('recv ' + eventName);
+  };
+
+  // XXX: make sure we could receive events
+  // Remove this part when we really need these events
+  ['start-scanning', 'scanned', 'start-scanning-failed', 'stop-scanning',
+    'stopped-scanning', 'stop-scanning-failed', 'gatt-device-found',
+    'connecting', 'connected', 'connecting-failed', 'discovering-services',
+    'discovered-services', 'discovering-services-failed'].forEach(function(eventName) {
+    rsHelper.on(eventName, gotEvent.bind(this, eventName));
+  });
+
 };
