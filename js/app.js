@@ -103,6 +103,10 @@ window.onload = function () {
     console.log('recv ' + eventName);
   };
 
+  var flyingStatusHandler = function (eventName){
+    document.getElementById('flyingStatus').textContent = eventName;
+  };
+
   // XXX: make sure we could receive events
   // Remove this part when we really need these events
   ['start-scanning', 'scanned', 'start-scanning-failed', 'stop-scanning',
@@ -110,6 +114,21 @@ window.onload = function () {
     'connecting', 'connected', 'connecting-failed', 'discovering-services',
     'discovered-services', 'discovering-services-failed'].forEach(function(eventName) {
     rsHelper.on(eventName, gotEvent.bind(this, eventName));
+  });
+
+  /**
+   * Flying statuses:
+   *
+   * 0: Landed
+   * 1: Taking off
+   * 2: Hovering
+   * 3: ??
+   * 4: Landing
+   * 5: Emergency / Cut out
+   */
+  ['fsLanded', 'fsTakingOff', 'fsHovering','fsUnknown', 'fsLanding',
+    'fsCutOff'].forEach(function(eventName){
+    rsHelper.on(eventName, flyingStatusHandler.bind(this, eventName));
   });
 
 };
