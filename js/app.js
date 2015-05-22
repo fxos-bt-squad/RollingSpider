@@ -73,8 +73,7 @@ window.onload = function (){
     showDebugInfo();
   }, 1/30 * 1000);
 
-  var controller = new BluetoothController();
-  var rsHelper = new RollingSpiderHelper(controller);
+  var rsHelper = new RollingSpiderHelper();
 
   var elConnect = document.getElementById('connect');
   elConnect.scanningStatus = false;
@@ -88,5 +87,15 @@ window.onload = function (){
       this.scanningStatus = true;
       rsHelper.startScan();
     }
+  };
+
+  var elTakeOff = document.getElementById('takeoff');
+  elTakeOff.onclick = function (){
+    rsHelper.takeOff();
+  };
+
+  var elLanding = document.getElementById('landing');
+  elLanding.onclick = function (){
+    rsHelper.landing();
   };
 };
