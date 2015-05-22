@@ -5,7 +5,7 @@ function RollingSpiderHelper() {
   this._counter = 1;
 }
 
-RollingSpiderHelper.prototype = {
+RollingSpiderHelper.prototype = evt({
   startScan: function StartScan(){
     if(!this._adapter){
       this._adapter = this._manager.defaultAdapter;
@@ -115,5 +115,5 @@ RollingSpiderHelper.prototype = {
       return Promise.reject(reason);
     }.bind(this));
   }
-};
+});
 
