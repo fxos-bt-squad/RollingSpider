@@ -6,36 +6,44 @@ function RollingSpiderHelper() {
 }
 
 RollingSpiderHelper.prototype = evt({
+
   startScan: function StartScan(){
     if(!this._adapter){
       this._adapter = this._manager.defaultAdapter;
     }
+    this.fire('start-scanning');
     this._adapter.startLeScan([]).then(function onResolve(handle) {
+      this.fire('scanned');
       console.log('startScan resolve [' + JSON.stringify(handle) + ']');
       this._leScanHandle = handle;
       this._leScanHandle.addEventListener('devicefound',
         this._onGattDeviceFound.bind(this));
       return Promise.resolve(handle);
     }.bind(this), function onReject(reason) {
+      this.fire('start-scanning-failed', reason);
       console.log('startScan reject [' + JSON.stringify(reason) + ']');
       return Promise.reject(reason);
     }.bind(this));
   },
 
   stopScan: function StopScan(){
+    this.fire('stop-scanning');
     this._adapter.stopLeScan(this._leScanHandle).then(function onResolve() {
+      this.fire('stopped-scanning');
       this._leScanHandle = null;
       console.log('stopScan resolve');
       return Promise.resolve();
     }.bind(this), function onReject(reason) {
+      this.fire('stop-scanning-failed', reason);
       console.log('stopScan reject');
       console.log(reason);
       return Promise.reject(reason);
     }.bind(this));
   },
 
-  _onGattDeviceFound: function onGattDevceFound(evt){
-    if(evt.device.name.indexOf('RS_') === 0 && !this.connected){
+  _onGattDeviceFound: function onGattDevceFound(evt) {
+    if(evt.device.name.indexOf('RS_') === 0 && !this.connected) {
+      this.fire('gatt-device-found');
       this.connected = true;
       console.log('Rolling Spider FOUND!!!!!');
       this._device = evt.device;
@@ -45,11 +53,14 @@ RollingSpiderHelper.prototype = evt({
     }
   },
 
-  connect: function Connect(){
+  connect: function Connect() {
+    this.fire('connecting');
     this._gatt.connect().then(function onResolve() {
+      this.fire('connected');
       console.log('connect resolve');
       this.discoverServices();
     }.bind(this), function onReject(reason) {
+      this.fire('connecting-failed', reason);
       console.log('connect reject: ' + reason);
     }.bind(this));
   },
@@ -84,7 +95,8 @@ RollingSpiderHelper.prototype = evt({
     });
   },
 
-  discoverServices: function DiscoverServices(){
+  discoverServices: function DiscoverServices() {
+    this.fire('discovering-services');
     return this._gatt.discoverServices().then(function onResolve(value) {
       this._gatt.oncharacteristicchanged =
       function onCharacteristicChanged(evt) {
@@ -109,8 +121,10 @@ RollingSpiderHelper.prototype = evt({
           //characteristic.startNotifications();
         }
       }
+      this.fire('discovered-services');
       return Promise.resolve(value);
     }.bind(this), function onReject(reason) {
+      this.fire('discovering-services-failed', reason);
       console.log('discoverServices reject: [' + reason + ']');
       return Promise.reject(reason);
     }.bind(this));
