@@ -14,6 +14,7 @@ function ab2str(buf) {
 
 function RollingSpiderHelper() {
   this._manager = navigator.mozBluetooth;
+  this._stateManager = new StateManager(this).start();
   this.connected = false;
   this._characteristics = {};
   this._counter = 1;
@@ -21,30 +22,35 @@ function RollingSpiderHelper() {
 
 RollingSpiderHelper.prototype = evt({
 
-  connect: function () {
+  connect: function (deviceNamePrefix) {
+    var prefix = deviceNamePrefix || 'RS_';
     var that = this;
-    this.fire('connecting');
-    return new Promise(function(resolve, reject) {
-      console.log('_startScan');
-      that._startScan().then(function(handle) {
-        console.log('_findDevice');
-        return that._findDevice('RS_');
-      }).then(function() {
-        console.log('_stopScan');
-        that._stopScan();
-        console.log('_connect');
-        return that._connect();
-      }).then(function() {
-        console.log('_discoverServices');
-        return that._discoverServices();
-      }).then(function() {
-        that.fire('connected')
-      }).catch(function(reason) {
-        that.fire('connecting-failed');
-        console.log('catch reject: ' + reason);
-        reject(reason);
+    if (this._stateManager.isAbleToConnect()) {
+      this.fire('connecting');
+      return new Promise(function(resolve, reject) {
+        that.fire('scanning-start')
+        that._startScan().then(function(handle) {
+          that.fire('finding-device', {prefix: prefix});
+          return that._findDevice(prefix);
+        }).then(function(device) {
+          that.fire('scanning-stop')
+          that._stopScan();
+          that.fire('gatt-connecting')
+          return that._gatt.connect();
+        }).then(function() {
+          that.fire('discovering-services')
+          return that._discoverServices();
+        }).then(function() {
+          that.fire('connected')
+        }).catch(function(reason) {
+          that.fire('connecting-failed', reason);
+          reject(reason);
+        });
       });
-    });
+    } else {
+      Promise.reject('in state ' + this._stateManager.state);
+    }
+
   },
 
   _findDevice: function(deviceNamePrefix) {
@@ -55,10 +61,9 @@ RollingSpiderHelper.prototype = evt({
         // XXX: can we use evt.device.name.startWith ?
         if(evt.device.name.indexOf(deviceNamePrefix) === 0 && !that.connected) {
           that.connected = true;
-          console.log('Rolling Spider FOUND!!!!!');
           that._device = evt.device;
           that._gatt = that._device.gatt;
-          resolve();
+          resolve(evt.device);
         }
       };
       that._leScanHandle.addEventListener('devicefound', onGattDeviceFount);
@@ -71,11 +76,9 @@ RollingSpiderHelper.prototype = evt({
       this._adapter = this._manager.defaultAdapter;
     }
     return this._adapter.startLeScan([]).then(function onResolve(handle) {
-      console.log('startScan resolve [' + JSON.stringify(handle) + ']');
       that._leScanHandle = handle;
       return Promise.resolve(handle);
     }, function onReject(reason) {
-      console.log('startScan reject [' + JSON.stringify(reason) + ']');
       return Promise.reject(reason);
     });
   },
@@ -83,22 +86,10 @@ RollingSpiderHelper.prototype = evt({
   _stopScan: function StopScan(){
     this._adapter.stopLeScan(this._leScanHandle).then(function onResolve() {
       this._leScanHandle = null;
-      console.log('stopScan resolve');
       return Promise.resolve();
     }.bind(this), function onReject(reason) {
-      console.log('stopScan reject');
-      console.log(reason);
       return Promise.reject(reason);
     }.bind(this));
-  },
-
-  _connect: function Connect() {
-    var that = this;
-    return this._gatt.connect().then(function onResolve() {
-      console.log('connect resolve');
-    }, function onReject(reason) {
-      console.log('connect reject: ' + reason);
-    });
   },
 
   takeOff: function TakeOff(){
@@ -189,9 +180,9 @@ RollingSpiderHelper.prototype = evt({
         this.onCharacteristicChanged.bind(this);
 
       console.log('gatt client discoverServices:' +
-        'resolved with value: [' + value + ']');
+        ' resolved with value: [' + value + ']');
       console.log('gatt client found ' + this._gatt.services.length +
-        'services in total');
+        ' services in total');
 
       var services = this._gatt.services;
       for(var i = 0; i < services.length; i++) {
@@ -205,16 +196,18 @@ RollingSpiderHelper.prototype = evt({
           console.log(uuid);
         }
       }
-      function retry(){
+
+      function retry() {
         console.log('discover services retry...');
-        setTimeout(that._discoverServices().bind(that), 100);
+        setTimeout(that._discoverServices(), 100);
       }
+
       return new Promise(function (resolve, reject){
         if(that.checkChar()){
-          var notificationSuccess_FB0E = this.enableNotification(
-            this._characteristics[FB0E_UUID]);
-          var notificationSuccess_FB0F = this.enableNotification(
-            this._characteristics[FB0F_UUID]);
+          var notificationSuccess_FB0E = that.enableNotification(
+            that._characteristics[FB0E_UUID]);
+          var notificationSuccess_FB0F = that.enableNotification(
+            that._characteristics[FB0F_UUID]);
           if(!notificationSuccess_FB0E || !notificationSuccess_FB0F){
             retry();
           } else {
