@@ -1,5 +1,6 @@
 window.onload = function () {
-  console.log("touchscreen is", VirtualJoystick.touchScreenAvailable() ? "available" : "not available");
+  console.log("touchscreen is " +
+    (VirtualJoystick.touchScreenAvailable() ? "available" : "not available"));
 
   var joystickLeft  = new VirtualJoystick({
     container : document.getElementById('joystickArea'),

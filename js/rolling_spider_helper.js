@@ -1,4 +1,7 @@
 var CCCD_UUID = '00002902-0000-1000-8000-00805f9b34fb';
+var FA0B_UUID = '9a66fa0b-0800-9191-11e4-012d1540cb8e';
+var FB0E_UUID = '9a66fb0e-0800-9191-11e4-012d1540cb8e';
+var FB0F_UUID = '9a66fb0f-0800-9191-11e4-012d1540cb8e';
 
 function ab2str(buf) {
   var result = '';
@@ -99,8 +102,7 @@ RollingSpiderHelper.prototype = evt({
   },
 
   takeOff: function TakeOff(){
-    var characteristic =
-      this._characteristics['9a66fa0b-0800-9191-11e4-012d1540cb8e'];
+    var characteristic = this._characteristics[FA0B_UUID];
 
     // 4, (byte)mSettingsCounter, 2, 0, 1, 0
     var buffer = new ArrayBuffer(6);
@@ -114,8 +116,7 @@ RollingSpiderHelper.prototype = evt({
   },
 
   landing: function Landing(){
-    var characteristic =
-      this._characteristics['9a66fa0b-0800-9191-11e4-012d1540cb8e'];
+    var characteristic = this._characteristics[FA0B_UUID];
 
     // 4, (byte)mSettingsCounter, 2, 0, 3, 0
     var buffer = new ArrayBuffer(6);
@@ -129,6 +130,7 @@ RollingSpiderHelper.prototype = evt({
   },
 
   enableNotification: function EnableNotification(characteristic){
+    var success = false;
     characteristic.startNotifications().then(function onResolve(){
       console.log('enableNotification for ' +
         characteristic.uuid + ' success');
@@ -147,8 +149,10 @@ RollingSpiderHelper.prototype = evt({
         var array = new Uint8Array(buffer);
         array.set([0x01, 0x00]);
         descriptor.writeValue(buffer);
+        success = true;
       }
     }
+    return success;
   },
 
   onCharacteristicChanged: function OnCharacteristicChanged(evt) {
@@ -158,18 +162,28 @@ RollingSpiderHelper.prototype = evt({
       characteristic.uuid + ') changed to ' + ab2str(value));
 
     switch(characteristic.uuid){
-      case '9a66fb0e-0800-9191-11e4-012d1540cb8e':
-        var eventList = ['fsLanded', 'fsTakingOff', 'fsHovering', 'fsUnknown', 'fsLanding', 'fsCutOff'];
+      case FB0E_UUID:
+        var eventList = ['fsLanded', 'fsTakingOff', 'fsHovering',
+          'fsUnknown', 'fsLanding', 'fsCutOff'];
         var array = new Uint8Array(value);
         this.fire(eventList[array[6]]);
         break;
-      case '9a66fb0f-0800-9191-11e4-012d1540cb8e':
+      case FB0F_UUID:
         console.log('Battery: ' + ab2str(value));
         break;
     }
   },
 
+  checkChar: function (){
+    var charFB0E = this._characteristics[FB0E_UUID];
+    var charFB0F = this._characteristics[FB0F_UUID];
+    var charFA0B = this._characteristics[FA0B_UUID];
+
+    return charFB0E && charFB0F && charFA0B;
+  },
+
   _discoverServices: function DiscoverServices() {
+    var that = this;
     return this._gatt.discoverServices().then(function onResolve(value) {
       this._gatt.oncharacteristicchanged =
         this.onCharacteristicChanged.bind(this);
@@ -191,11 +205,26 @@ RollingSpiderHelper.prototype = evt({
           console.log(uuid);
         }
       }
-      this.enableNotification(this.
-        _characteristics['9a66fb0e-0800-9191-11e4-012d1540cb8e']);
-      this.enableNotification(this.
-        _characteristics['9a66fb0f-0800-9191-11e4-012d1540cb8e']);
-      return Promise.resolve(value);
+      function retry(){
+        console.log('discover services retry...');
+        setTimeout(that._discoverServices().bind(that), 100);
+      }
+      return new Promise(function (resolve, reject){
+        if(that.checkChar()){
+          var notificationSuccess_FB0E = this.enableNotification(
+            this._characteristics[FB0E_UUID]);
+          var notificationSuccess_FB0F = this.enableNotification(
+            this._characteristics[FB0F_UUID]);
+          if(!notificationSuccess_FB0E || !notificationSuccess_FB0F){
+            retry();
+          } else {
+            console.log('discover services success');
+            resolve();
+          }
+        }else{
+          retry();
+        }
+      });
     }.bind(this), function onReject(reason) {
       console.log('discoverServices reject: [' + reason + ']');
       return Promise.reject(reason);
