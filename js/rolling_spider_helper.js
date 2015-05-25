@@ -18,62 +18,84 @@ function RollingSpiderHelper() {
 
 RollingSpiderHelper.prototype = evt({
 
-  startScan: function StartScan(){
+  connect: function () {
+    var that = this;
+    this.fire('connecting');
+    return new Promise(function(resolve, reject) {
+      console.log('_startScan');
+      that._startScan().then(function(handle) {
+        console.log('_findDevice');
+        return that._findDevice('RS_');
+      }).then(function() {
+        console.log('_stopScan');
+        that._stopScan();
+        console.log('_connect');
+        return that._connect();
+      }).then(function() {
+        console.log('_discoverServices');
+        return that._discoverServices();
+      }).then(function() {
+        that.fire('connected')
+      }).catch(function(reason) {
+        that.fire('connecting-failed');
+        console.log('catch reject: ' + reason);
+        reject(reason);
+      });
+    });
+  },
+
+  _findDevice: function(deviceNamePrefix) {
+    var that = this;
+    // XXX: we should set timeout for rejection
+    return new Promise(function(resolve, reject) {
+      var onGattDeviceFount = function(evt) {
+        // XXX: can we use evt.device.name.startWith ?
+        if(evt.device.name.indexOf(deviceNamePrefix) === 0 && !that.connected) {
+          that.connected = true;
+          console.log('Rolling Spider FOUND!!!!!');
+          that._device = evt.device;
+          that._gatt = that._device.gatt;
+          resolve();
+        }
+      };
+      that._leScanHandle.addEventListener('devicefound', onGattDeviceFount);
+    });
+  },
+
+  _startScan: function StartScan() {
+    var that = this;
     if(!this._adapter){
       this._adapter = this._manager.defaultAdapter;
     }
-    this.fire('start-scanning');
-    this._adapter.startLeScan([]).then(function onResolve(handle) {
-      this.fire('scanned');
+    return this._adapter.startLeScan([]).then(function onResolve(handle) {
       console.log('startScan resolve [' + JSON.stringify(handle) + ']');
-      this._leScanHandle = handle;
-      this._leScanHandle.addEventListener('devicefound',
-        this._onGattDeviceFound.bind(this));
+      that._leScanHandle = handle;
       return Promise.resolve(handle);
-    }.bind(this), function onReject(reason) {
-      this.fire('start-scanning-failed', reason);
+    }, function onReject(reason) {
       console.log('startScan reject [' + JSON.stringify(reason) + ']');
       return Promise.reject(reason);
-    }.bind(this));
+    });
   },
 
-  stopScan: function StopScan(){
-    this.fire('stop-scanning');
+  _stopScan: function StopScan(){
     this._adapter.stopLeScan(this._leScanHandle).then(function onResolve() {
-      this.fire('stopped-scanning');
       this._leScanHandle = null;
       console.log('stopScan resolve');
       return Promise.resolve();
     }.bind(this), function onReject(reason) {
-      this.fire('stop-scanning-failed', reason);
       console.log('stopScan reject');
       console.log(reason);
       return Promise.reject(reason);
     }.bind(this));
   },
 
-  _onGattDeviceFound: function onGattDevceFound(evt) {
-    if(evt.device.name.indexOf('RS_') === 0 && !this.connected) {
-      this.fire('gatt-device-found');
-      this.connected = true;
-      console.log('Rolling Spider FOUND!!!!!');
-      this._device = evt.device;
-      this._gatt = this._device.gatt;
-      this.connect();
-      this.stopScan();
-    }
-  },
-
-  connect: function Connect() {
-    this.fire('connecting');
-    this._gatt.connect().then(function onResolve() {
-      this.fire('connected');
+  _connect: function Connect() {
+    var that = this;
+    return this._gatt.connect().then(function onResolve() {
       console.log('connect resolve');
-      this.discoverServices();
-    }.bind(this), function onReject(reason) {
-      this.fire('connecting-failed', reason);
+    }, function onReject(reason) {
       console.log('connect reject: ' + reason);
-    }.bind(this));
+    });
   },
 
   takeOff: function TakeOff(){
@@ -147,21 +169,22 @@ RollingSpiderHelper.prototype = evt({
     }
   },
 
-  discoverServices: function DiscoverServices() {
-    this.fire('discovering-services');
+  _discoverServices: function DiscoverServices() {
     return this._gatt.discoverServices().then(function onResolve(value) {
-      this._gatt.oncharacteristicchanged = this.onCharacteristicChanged.bind(this);
+      this._gatt.oncharacteristicchanged =
+        this.onCharacteristicChanged.bind(this);
 
       console.log('gatt client discoverServices:' +
-        'resolved with value: [' +value + ']');
+        'resolved with value: [' + value + ']');
       console.log('gatt client found ' + this._gatt.services.length +
         'services in total');
+
       var services = this._gatt.services;
-      for(var i = 0; i<services.length; i++){
+      for(var i = 0; i < services.length; i++) {
         var characteristics = services[i].characteristics;
         console.log('service[' + i + ']' + characteristics.length +
           'characteristics in total');
-        for(var j=0; j<characteristics.length; j++){
+        for(var j = 0; j < characteristics.length; j++) {
           var characteristic = characteristics[j];
           var uuid = characteristic.uuid;
           this._characteristics[uuid] = characteristic;
@@ -172,10 +195,8 @@ RollingSpiderHelper.prototype = evt({
         _characteristics['9a66fb0e-0800-9191-11e4-012d1540cb8e']);
       this.enableNotification(this.
         _characteristics['9a66fb0f-0800-9191-11e4-012d1540cb8e']);
-      this.fire('discovered-services');
       return Promise.resolve(value);
     }.bind(this), function onReject(reason) {
-      this.fire('discovering-services-failed', reason);
       console.log('discoverServices reject: [' + reason + ']');
       return Promise.reject(reason);
     }.bind(this));

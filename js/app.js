@@ -76,17 +76,8 @@ window.onload = function () {
   var rsHelper = new RollingSpiderHelper();
 
   var elConnect = document.getElementById('connect');
-  elConnect.scanningStatus = false;
   elConnect.onclick = function () {
-    if(this.scanningStatus){
-      console.log('stop scanning');
-      this.scanningStatus = false;
-      rsHelper.stopScan();
-    } else {
-      console.log('start scanning');
-      this.scanningStatus = true;
-      rsHelper.startScan();
-    }
+    rsHelper.connect();
   };
 
   var elTakeOff = document.getElementById('takeoff');
@@ -106,15 +97,6 @@ window.onload = function () {
   var flyingStatusHandler = function (eventName){
     document.getElementById('flyingStatus').textContent = eventName;
   };
-
-  // XXX: make sure we could receive events
-  // Remove this part when we really need these events
-  ['start-scanning', 'scanned', 'start-scanning-failed', 'stop-scanning',
-    'stopped-scanning', 'stop-scanning-failed', 'gatt-device-found',
-    'connecting', 'connected', 'connecting-failed', 'discovering-services',
-    'discovered-services', 'discovering-services-failed'].forEach(function(eventName) {
-    rsHelper.on(eventName, gotEvent.bind(this, eventName));
-  });
 
   /**
    * Flying statuses:
