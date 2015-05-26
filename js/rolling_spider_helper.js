@@ -82,7 +82,7 @@ RollingSpiderHelper.prototype = evt({
         });
       });
     } else {
-      Promise.reject('Unable to connect in state ' + this._stateManager.state);
+      return Promise.reject('Unable to connect in state ' + this._stateManager.state);
     }
   },
 
@@ -95,7 +95,7 @@ RollingSpiderHelper.prototype = evt({
         console.warn(reason);
       });
     } else {
-      Promise.reject(
+      return Promise.reject(
         'Unable to disconnect in state ' + this._stateManager.state);
     }
   },
