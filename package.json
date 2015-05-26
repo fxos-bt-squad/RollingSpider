@@ -1,0 +1,22 @@
+{
+  "name": "fxos-rolling-spider",
+  "version": "1.0.0",
+  "description": "Rolling Spider Control App for Firefox OS",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/weilonge/RollingSpider.git"
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/weilonge/RollingSpider/issues"
+  },
+  "homepage": "https://github.com/weilonge/RollingSpider#readme",
+  "devDependencies": {
+    "gulp": "^3.8.11",
+    "gulp-jshint": "^1.11.0",
+    "gulp-notify": "^2.2.0",
+    "jshint-stylish": "^2.0.0",
+    "map-stream": "0.0.5",
+    "path": "^0.11.14"
+  }
+}

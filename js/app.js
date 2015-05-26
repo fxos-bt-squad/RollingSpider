@@ -1,3 +1,4 @@
+/* global console, VirtualJoystick, RollingSpiderHelper */
 'use strict';
 
 window.addEventListener('resize', function ResizeHandler() {
@@ -151,5 +152,4 @@ function init(clientWidth, clientHeight) {
     'fsCutOff'].forEach(function(eventName){
     rsHelper.on(eventName, flyingStatusHandler.bind(this, eventName));
   });
-
-};
+}
