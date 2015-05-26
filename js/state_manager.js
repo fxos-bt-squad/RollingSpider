@@ -7,8 +7,8 @@
   };
 
   StateManager.STATES = Object.freeze({
-    CONNECTING: 'connecting',
     CONNECTED: 'connected',
+    CONNECTING: 'connecting',
     DISCONNECT: 'disconnect'
   });
 
@@ -34,6 +34,7 @@
       'gatt-device-found',
       'connecting',
       'connected',
+      'disconnect',
       'connecting-failed',
       'discovering-services'
     ],
@@ -55,6 +56,10 @@
       return this.state === StateManager.STATES.DISCONNECT;
     },
 
+    isConnected: function() {
+      return this.state === StateManager.STATES.CONNECTED;
+    },
+
     handleEvent: function(eventName, detail) {
       if (detail) {
         if (detail instanceof Error) {
@@ -74,6 +79,7 @@
           this.state = StateManager.STATES.CONNECTING;
           break;
         case 'connecting-failed':
+        case 'disconnect':
           this.state = StateManager.STATES.DISCONNECT;
           break;
       }
