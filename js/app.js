@@ -94,30 +94,43 @@ function init(clientWidth, clientHeight) {
   var rsHelper = new RollingSpiderHelper();
 
   var connectButton = document.getElementById('connect');
-  var toggleConnectButton = function(isConnected) {
-    if (isConnected) {
-      connectButton.textContent = 'Disconnect';
-    } else {
-      connectButton.textContent = 'Connect';
+  var changeConnectButtonText = function(state) {
+    switch (state) {
+      case 'connecting':
+        connectButton.textContent = 'Connecting';
+        connectButton.disabled = true;
+        break;
+      case 'discovering-services':
+        connectButton.textContent = 'Discovering Services...';
+        connectButton.disabled = true;
+        break;
+      case 'connected':
+        connectButton.textContent = 'Disconnect';
+        connectButton.disabled = false;
+        break;
+      case 'disconnect':
+        connectButton.textContent = 'Connect';
+        connectButton.disabled = false;
+        break;
     }
   };
-  rsHelper.on('connect', function() {
-    toggleConnectButton(true);
+  // XXX
+  ['connecting', 'discovering-services', 'connected', 'disconnect'].forEach(
+      function(eventName) {
+    rsHelper.on(eventName, function() {
+      changeConnectButtonText(eventName);
+    });
   });
-  rsHelper.on('disconnect', function() {
-    toggleConnectButton(false);
-  });
-
   connectButton.addEventListener('click', function() {
     if (rsHelper.isAbleToConnect()) {
       rsHelper.connect().then(function onResolve() {
-        toggleConnectButton(true);
+        changeConnectButtonText('connected');
       }, function onReject() {
-        toggleConnectButton(false);
+        changeConnectButtonText('disconnect');
       });
     } else {
       rsHelper.disconnect().then(function onResolve() {
-        toggleConnectButton(false);
+        changeConnectButtonText('disconnect');
       }, function onReject() {
         // XXX
       });
