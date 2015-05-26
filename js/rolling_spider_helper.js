@@ -1,3 +1,6 @@
+/* global StateManager, evt, console, Promise */
+'use strict';
+
 var CCCD_UUID = '00002902-0000-1000-8000-00805f9b34fb';
 var FA0A_UUID = '9a66fa0a-0800-9191-11e4-012d1540cb8e';
 var FA0B_UUID = '9a66fa0b-0800-9191-11e4-012d1540cb8e';
@@ -30,7 +33,7 @@ function convertFloat2Bytes(floatValue){
 function RollingSpiderHelper() {
   this._manager = navigator.mozBluetooth;
   this._stateManager = new StateManager(this).start();
-  this.connected = false;
+  this._isGattConnected = false;
   this._characteristics = {};
   this._motorCounter = 1;
   this._settingsCounter = 1;
@@ -40,35 +43,82 @@ function RollingSpiderHelper() {
 
 RollingSpiderHelper.prototype = evt({
 
+  isAbleToConnect: function() {
+    return this._stateManager.isAbleToConnect();
+  },
+
+  isAbleToDisconnect: function() {
+    // XXX: we should be able to disconnect when
+    // state = StateManager.STATES.CONNECTING
+    return this._stateManager.isConnected();
+  },
+
   connect: function (deviceNamePrefix) {
     var prefix = deviceNamePrefix || 'RS_';
     var that = this;
     if (this._stateManager.isAbleToConnect()) {
       this.fire('connecting');
       return new Promise(function(resolve, reject) {
-        that.fire('scanning-start')
-        that._startScan().then(function(handle) {
+        that.fire('scanning-start');
+        that._startScan().then(function(/* handle */) {
           that.fire('finding-device', {prefix: prefix});
           return that._findDevice(prefix);
         }).then(function(device) {
-          that.fire('scanning-stop')
+          that.fire('scanning-stop');
+          device.gatt.onconnectionstatechanged =
+            that._gattConnectionStateChanged.bind(that);
           that._stopScan();
-          that.fire('gatt-connecting')
+          that.fire('gatt-connecting');
           return that._gatt.connect();
         }).then(function() {
-          that.fire('discovering-services')
+          that.fire('discovering-services');
           return that._discoverServices();
         }).then(function() {
-          that.fire('connected')
+          that.fire('connected');
+          resolve();
         }).catch(function(reason) {
           that.fire('connecting-failed', reason);
           reject(reason);
         });
       });
     } else {
-      Promise.reject('in state ' + this._stateManager.state);
+      return Promise.reject('Unable to connect in state ' + this._stateManager.state);
     }
+  },
 
+  disconnect: function() {
+    var that = this;
+    if (this._stateManager.isConnected() && this._gatt) {
+      return this._gatt.disconnect().then(function onResolve() {
+        that.fire('disconnect');
+      }, function onReject(reason) {
+        console.warn(reason);
+      });
+    } else {
+      return Promise.reject(
+        'Unable to disconnect in state ' + this._stateManager.state);
+    }
+  },
+
+  _gattConnectionStateChanged: function() {
+    var connectionState = this._gatt.connectionState;
+    switch(connectionState) {
+      case 'disconnected':
+        this._isGattConnected = false;
+        this.fire('gatt-disconnected');
+        this.fire('disconnect');
+        break;
+      case 'disconnecting':
+        this.fire('gatt-disconnecting');
+        break;
+      case 'connected':
+        this.fire('gatt-connected');
+        this._isGattConnected = true;
+        break;
+      case 'connecting':
+        this.fire('gatt-connecting');
+        break;
+    }
   },
 
   readyToGo: function (){
@@ -81,11 +131,10 @@ RollingSpiderHelper.prototype = evt({
     // XXX: we should set timeout for rejection
     return new Promise(function(resolve, reject) {
       var onGattDeviceFount = function(evt) {
-        // XXX: can we use evt.device.name.startWith ?
-        if(evt.device.name.indexOf(deviceNamePrefix) === 0 && !that.connected) {
-          that.connected = true;
-          that._device = evt.device;
-          that._gatt = that._device.gatt;
+        var device = evt.device;
+        if(device.name.startsWith(deviceNamePrefix) && !that._isGattConnected) {
+          that._device = device;
+          that._gatt = device.gatt;
           resolve(evt.device);
         }
       };
@@ -115,32 +164,36 @@ RollingSpiderHelper.prototype = evt({
     }.bind(this));
   },
 
-  takeOff: function TakeOff(){
-    var characteristic = this._characteristics[FA0B_UUID];
+  takeOff: function TakeOff() {
+    if (this._stateManager.isConnected()) {
+      var characteristic = this._characteristics[FA0B_UUID];
 
-    // 4, (byte)mSettingsCounter, 2, 0, 1, 0
-    var buffer = new ArrayBuffer(6);
-    var array = new Uint8Array(buffer);
-    array.set([4, this._settingsCounter++, 2, 0, 1, 0]);
-    characteristic.writeValue(buffer).then(function onResolve(){
-      console.log('takeoff success');
-    }, function onReject(){
-      console.log('takeoff failed');
-    });
+      // 4, (byte)mSettingsCounter, 2, 0, 1, 0
+      var buffer = new ArrayBuffer(6);
+      var array = new Uint8Array(buffer);
+      array.set([4, this._settingsCounter++, 2, 0, 1, 0]);
+      characteristic.writeValue(buffer).then(function onResolve(){
+        console.log('takeoff success');
+      }, function onReject(){
+        console.log('takeoff failed');
+      });
+    }
   },
 
-  landing: function Landing(){
-    var characteristic = this._characteristics[FA0B_UUID];
+  landing: function Landing() {
+    if (this._stateManager.isConnected()) {
+      var characteristic = this._characteristics[FA0B_UUID];
 
-    // 4, (byte)mSettingsCounter, 2, 0, 3, 0
-    var buffer = new ArrayBuffer(6);
-    var array = new Uint8Array(buffer);
-    array.set([4, this._settingsCounter++, 2, 0, 3, 0]);
-    characteristic.writeValue(buffer).then(function onResolve(){
-      console.log('landing success');
-    }, function onReject(){
-      console.log('landing failed');
-    });
+      // 4, (byte)mSettingsCounter, 2, 0, 3, 0
+      var buffer = new ArrayBuffer(6);
+      var array = new Uint8Array(buffer);
+      array.set([4, this._settingsCounter++, 2, 0, 3, 0]);
+      characteristic.writeValue(buffer).then(function onResolve(){
+        console.log('landing success');
+      }, function onReject(){
+        console.log('landing failed');
+      });
+    }
   },
 
   emergencyStop: function EmergencyStop(){
@@ -283,7 +336,7 @@ RollingSpiderHelper.prototype = evt({
       }
 
       return new Promise(function (resolve, reject){
-        if(that.checkChar()){
+        if(that.checkChar()) {
           var notificationSuccess_FB0E = that.enableNotification(
             that._characteristics[FB0E_UUID]);
           var notificationSuccess_FB0F = that.enableNotification(
@@ -294,7 +347,7 @@ RollingSpiderHelper.prototype = evt({
             console.log('discover services success');
             resolve();
           }
-        }else{
+        } else {
           retry();
         }
       });

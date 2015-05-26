@@ -1,3 +1,6 @@
+/* global console, VirtualJoystick, RollingSpiderHelper */
+'use strict';
+
 window.addEventListener('resize', function ResizeHandler() {
   var width = document.body.clientWidth;
   var height = document.body.clientHeight;
@@ -23,10 +26,10 @@ function init(clientWidth, clientHeight) {
     mouseSupport  : false
   });
   joystickLeft.addEventListener('touchStart', function(){
-    console.log('L down')
+    console.log('L down');
   });
   joystickLeft.addEventListener('touchEnd', function(){
-    console.log('L up')
+    console.log('L up');
   });
   joystickLeft.addEventListener('touchStartValidation', function(event){
     var touch	= event.changedTouches[0];
@@ -58,7 +61,7 @@ function init(clientWidth, clientHeight) {
     if( touch.pageX < window.innerWidth/2 ){
       return false;
     }
-    return true
+    return true;
   });
 
   function showDebugInfo(tilt, forward, turn, up){
@@ -90,10 +93,36 @@ function init(clientWidth, clientHeight) {
 
   var rsHelper = new RollingSpiderHelper();
 
-  var elConnect = document.getElementById('connect');
-  elConnect.onclick = function () {
-    rsHelper.connect();
+  var connectButton = document.getElementById('connect');
+  var toggleConnectButton = function(isConnected) {
+    if (isConnected) {
+      connectButton.textContent = 'Disconnect';
+    } else {
+      connectButton.textContent = 'Connect';
+    }
   };
+  rsHelper.on('connect', function() {
+    toggleConnectButton(true);
+  });
+  rsHelper.on('disconnect', function() {
+    toggleConnectButton(false);
+  });
+
+  connectButton.addEventListener('click', function() {
+    if (rsHelper.isAbleToConnect()) {
+      rsHelper.connect().then(function onResolve() {
+        toggleConnectButton(true);
+      }, function onReject() {
+        toggleConnectButton(false);
+      });
+    } else {
+      rsHelper.disconnect().then(function onResolve() {
+        toggleConnectButton(false);
+      }, function onReject() {
+        // XXX
+      });
+    }
+  });
 
   var elTakeOff = document.getElementById('takeoff');
   elTakeOff.onclick = function (){
@@ -103,17 +132,6 @@ function init(clientWidth, clientHeight) {
   var elLanding = document.getElementById('landing');
   elLanding.onclick = function (){
     rsHelper.landing();
-  };
-
-/*
-  var elReadyToGo = document.getElementById('readyToGo');
-  elReadyToGo.onclick = function (){
-    rsHelper.readyToGo();
-  };
-*/
-
-  var gotEvent = function (eventName) {
-    console.log('recv ' + eventName);
   };
 
   var flyingStatusHandler = function (eventName){
@@ -134,5 +152,4 @@ function init(clientWidth, clientHeight) {
     'fsCutOff'].forEach(function(eventName){
     rsHelper.on(eventName, flyingStatusHandler.bind(this, eventName));
   });
-
-};
+}
