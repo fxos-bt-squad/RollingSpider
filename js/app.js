@@ -52,27 +52,32 @@ window.onload = function () {
     return true
   });
 
-  function showDebugInfo(){
+  function showDebugInfo(tilt, forward, turn, up){
     var eLeft = document.querySelector('#info > .left');
-    eLeft.innerHTML = 'Ldx:'+joystickLeft.deltaX() +
-      ' <br>Ldy:'+joystickLeft.deltaY() + '<br>' +
+    eLeft.innerHTML = 'tilt:' + tilt +
+      ' <br>forward:' + forward + '<br>' +
       (joystickLeft.right() ? ' right':'') +
       (joystickLeft.up()  ? ' up'   : '') +
       (joystickLeft.left()  ? ' left' : '') +
       (joystickLeft.down()  ? ' down'   : '');
 
     var eRight = document.querySelector('#info > .right');
-    eRight.innerHTML = 'Rdx:'+joystickRight.deltaX() +
-        ' <br>Rdy:'+joystickRight.deltaY() + '<br>' +
-        (joystickRight.right() ? ' right'  : '') +
-        (joystickRight.up()  ? ' up'   : '') +
-        (joystickRight.left()  ? ' left' : '') +
-        (joystickRight.down()  ? ' down'   : '');
+    eRight.innerHTML = 'turn:' + turn +
+      ' <br>up:' + up + '<br>' +
+      (joystickRight.right() ? ' right'  : '') +
+      (joystickRight.up()  ? ' up'   : '') +
+      (joystickRight.left()  ? ' left' : '') +
+      (joystickRight.down()  ? ' down'   : '');
   }
 
   setInterval(function(){
-    showDebugInfo();
-  }, 1/30 * 1000);
+    var tilt = Math.round(joystickLeft.deltaX()) * -1;
+    var forward = Math.round(joystickLeft.deltaY()) * -1;
+    var turn = Math.round(joystickRight.deltaX()) * -1;
+    var up = Math.round(joystickRight.deltaY()) * -1;
+    showDebugInfo(tilt, forward, turn, up);
+    rsHelper.motors(true, tilt, forward, turn, up, 0, 2);
+  }, 50);
 
   var rsHelper = new RollingSpiderHelper();
 
@@ -90,6 +95,13 @@ window.onload = function () {
   elLanding.onclick = function (){
     rsHelper.landing();
   };
+
+/*
+  var elReadyToGo = document.getElementById('readyToGo');
+  elReadyToGo.onclick = function (){
+    rsHelper.readyToGo();
+  };
+*/
 
   var gotEvent = function (eventName) {
     console.log('recv ' + eventName);

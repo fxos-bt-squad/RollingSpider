@@ -1,5 +1,7 @@
 var CCCD_UUID = '00002902-0000-1000-8000-00805f9b34fb';
+var FA0A_UUID = '9a66fa0a-0800-9191-11e4-012d1540cb8e';
 var FA0B_UUID = '9a66fa0b-0800-9191-11e4-012d1540cb8e';
+var FA0C_UUID = '9a66fa0c-0800-9191-11e4-012d1540cb8e';
 var FB0E_UUID = '9a66fb0e-0800-9191-11e4-012d1540cb8e';
 var FB0F_UUID = '9a66fb0f-0800-9191-11e4-012d1540cb8e';
 
@@ -12,12 +14,28 @@ function ab2str(buf) {
   return result;
 }
 
+function convertFloat2Bytes(floatValue){
+  var buffer = new ArrayBuffer(8);
+  var intView = new Uint8Array(buffer);
+  var floatView = new Float64Array(buffer);
+  floatView[0] = floatValue;
+/*
+  for(var i = 0; i < 8; i++){
+    console.log(intView[i].toString(2));
+  }
+*/
+  return intView;
+}
+
 function RollingSpiderHelper() {
   this._manager = navigator.mozBluetooth;
   this._stateManager = new StateManager(this).start();
   this.connected = false;
   this._characteristics = {};
-  this._counter = 1;
+  this._motorCounter = 1;
+  this._settingsCounter = 1;
+  this._emergencyCounter = 1;
+  this.readyToGo = false;
 }
 
 RollingSpiderHelper.prototype = evt({
@@ -51,6 +69,11 @@ RollingSpiderHelper.prototype = evt({
       Promise.reject('in state ' + this._stateManager.state);
     }
 
+  },
+
+  readyToGo: function (){
+    this.readyToGo = !this.readyToGo;
+    console.log('ready to go!!! ' + this.readyToGo);
   },
 
   _findDevice: function(deviceNamePrefix) {
@@ -98,7 +121,7 @@ RollingSpiderHelper.prototype = evt({
     // 4, (byte)mSettingsCounter, 2, 0, 1, 0
     var buffer = new ArrayBuffer(6);
     var array = new Uint8Array(buffer);
-    array.set([4, this._counter++, 2, 0, 1, 0]);
+    array.set([4, this._settingsCounter++, 2, 0, 1, 0]);
     characteristic.writeValue(buffer).then(function onResolve(){
       console.log('takeoff success');
     }, function onReject(){
@@ -112,12 +135,62 @@ RollingSpiderHelper.prototype = evt({
     // 4, (byte)mSettingsCounter, 2, 0, 3, 0
     var buffer = new ArrayBuffer(6);
     var array = new Uint8Array(buffer);
-    array.set([4, this._counter++, 2, 0, 3, 0]);
+    array.set([4, this._settingsCounter++, 2, 0, 3, 0]);
     characteristic.writeValue(buffer).then(function onResolve(){
       console.log('landing success');
     }, function onReject(){
       console.log('landing failed');
     });
+  },
+
+  emergencyStop: function EmergencyStop(){
+    var characteristic = this._characteristics[FA0C_UUID];
+
+    // 4, (byte)mSettingsCounter, 2, 0, 4, 0
+    var buffer = new ArrayBuffer(6);
+    var array = new Uint8Array(buffer);
+    array.set([4, this._emergencyCounter++, 2, 0, 4, 0]);
+    characteristic.writeValue(buffer).then(function onResolve(){
+      console.log('emergencyStop success');
+    }, function onReject(){
+      console.log('emergencyStop failed');
+    });
+  },
+
+  _sendMotorCmd: function SendMotorCmd(on, tilt, forward, turn, up, scale){
+    var characteristic = this._characteristics[FA0A_UUID];
+    if(!characteristic || !this.readyToGo) return;
+
+    var buffer = new ArrayBuffer(19);
+    var array = new Uint8Array(buffer);
+    array.fill(0);
+    array.set([
+      2,
+      this._motorCounter++,
+      2,
+      0,
+      2,
+      0,
+      (on ? 1 : 0),
+      tilt & 0xFF,
+      forward & 0xFF,
+      turn & 0xFF,
+      up & 0xFF,
+      0, 0, 0, 0,
+      0, 0, 0, 0
+    ]);
+    characteristic.writeValue(buffer).then(function onResolve(){
+      console.log('sendMotorCmd success');
+    }, function onReject(){
+      console.log('sendMotorCmd failed');
+    });
+  },
+
+  motors: function Motors(on, tilt, forward, turn, up, scale, steps){
+    for (var i = 0; i < steps; i++) {
+      this._sendMotorCmd(on, tilt, forward, turn, up, scale);
+    }
+    return true;
   },
 
   enableNotification: function EnableNotification(characteristic){
@@ -157,6 +230,11 @@ RollingSpiderHelper.prototype = evt({
         var eventList = ['fsLanded', 'fsTakingOff', 'fsHovering',
           'fsUnknown', 'fsLanding', 'fsCutOff'];
         var array = new Uint8Array(value);
+        if(eventList[array[6]] === 'fsHovering'){
+          this.readyToGo = true;
+        } else {
+          this.readyToGo = false;
+        }
         this.fire(eventList[array[6]]);
         break;
       case FB0F_UUID:
@@ -168,9 +246,11 @@ RollingSpiderHelper.prototype = evt({
   checkChar: function (){
     var charFB0E = this._characteristics[FB0E_UUID];
     var charFB0F = this._characteristics[FB0F_UUID];
+    var charFA0A = this._characteristics[FA0A_UUID];
     var charFA0B = this._characteristics[FA0B_UUID];
+    var charFA0C = this._characteristics[FA0C_UUID];
 
-    return charFB0E && charFB0F && charFA0B;
+    return charFB0E && charFB0F && charFA0A && charFA0B && charFA0C;
   },
 
   _discoverServices: function DiscoverServices() {
