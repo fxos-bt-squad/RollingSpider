@@ -1,4 +1,13 @@
-window.onload = function () {
+window.addEventListener('resize', function ResizeHandler() {
+  var width = document.body.clientWidth;
+  var height = document.body.clientHeight;
+  if (width >= height) {
+    window.removeEventListener('resize', ResizeHandler);
+    init(width, height);
+  }
+});
+
+function init(clientWidth, clientHeight) {
   console.log("touchscreen is " +
     (VirtualJoystick.touchScreenAvailable() ? "available" : "not available"));
 
@@ -24,7 +33,7 @@ window.onload = function () {
     if( touch.pageX >= window.innerWidth/2 ){
       return false;
     }
-    return true
+    return true;
   });
 
   var joystickRight  = new VirtualJoystick({

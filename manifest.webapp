@@ -4,6 +4,7 @@
   "description": "Remote controller for Rolling Spider",
   "launch_path": "/index.html",
   "orientation": [ "landscape" ],
+  "fullscreen": "true",
   "icons": {
     "16": "/img/icons/icon16x16.png",
     "48": "/img/icons/icon48x48.png",
