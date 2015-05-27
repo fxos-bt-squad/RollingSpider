@@ -14,6 +14,8 @@ function init(clientWidth, clientHeight) {
   console.log("touchscreen is " +
     (VirtualJoystick.touchScreenAvailable() ? "available" : "not available"));
 
+  var touchLeftJoy = false, touchRightJoy = false;
+
   var joystickLeft  = new VirtualJoystick({
     container : document.getElementById('joystickArea'),
     strokeStyle	: 'cyan',
@@ -26,9 +28,11 @@ function init(clientWidth, clientHeight) {
     mouseSupport  : false
   });
   joystickLeft.addEventListener('touchStart', function(){
+    touchLeftJoy = true;
     console.log('L down');
   });
   joystickLeft.addEventListener('touchEnd', function(){
+    touchLeftJoy = false;
     console.log('L up');
   });
   joystickLeft.addEventListener('touchStartValidation', function(event){
@@ -51,9 +55,11 @@ function init(clientWidth, clientHeight) {
     mouseSupport  : false
   });
   joystickRight.addEventListener('touchStart', function(){
+    touchRightJoy = true;
     console.log('R down');
   });
   joystickRight.addEventListener('touchEnd', function(){
+    touchRightJoy = false;
     console.log('R up');
   });
   joystickRight.addEventListener('touchStartValidation', function(event){
@@ -83,10 +89,11 @@ function init(clientWidth, clientHeight) {
   }
 
   setInterval(function(){
-    var tilt = Math.round(joystickLeft.deltaX()) * -1;
-    var forward = Math.round(joystickLeft.deltaY()) * -1;
-    var turn = Math.round(joystickRight.deltaX()) * -1;
-    var up = Math.round(joystickRight.deltaY()) * -1;
+    var tilt = touchLeftJoy ? Math.round(joystickLeft.deltaX() * -1) : 0;
+    var forward = touchLeftJoy ? Math.round(joystickLeft.deltaY() * -1) : 0;
+    var turn = touchRightJoy ? Math.round(joystickRight.deltaX() * -1) : 0;
+    var up = touchRightJoy ? Math.round(joystickRight.deltaY() * -1) : 0;
+
     showDebugInfo(tilt, forward, turn, up);
     rsHelper.motors(true, tilt, forward, turn, up, 0, 2);
   }, 50);
