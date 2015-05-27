@@ -89,9 +89,9 @@ function init(clientWidth, clientHeight) {
   }
 
   setInterval(function(){
-    var tilt = touchLeftJoy ? Math.round(joystickLeft.deltaX() * -1) : 0;
+    var tilt = touchLeftJoy ? Math.round(joystickLeft.deltaX()) : 0;
     var forward = touchLeftJoy ? Math.round(joystickLeft.deltaY() * -1) : 0;
-    var turn = touchRightJoy ? Math.round(joystickRight.deltaX() * -1) : 0;
+    var turn = touchRightJoy ? Math.round(joystickRight.deltaX()) : 0;
     var up = touchRightJoy ? Math.round(joystickRight.deltaY() * -1) : 0;
 
     showDebugInfo(tilt, forward, turn, up);
