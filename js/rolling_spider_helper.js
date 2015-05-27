@@ -246,7 +246,7 @@ RollingSpiderHelper.prototype = evt({
     return true;
   },
 
-  enableNotification: function EnableNotification(characteristic){
+  _enableNotification: function EnableNotification(characteristic){
     var success = false;
     characteristic.startNotifications().then(function onResolve(){
       console.log('enableNotification for ' +
@@ -296,7 +296,7 @@ RollingSpiderHelper.prototype = evt({
     }
   },
 
-  checkChar: function (){
+  _checkChar: function (){
     var charFB0E = this._characteristics[FB0E_UUID];
     var charFB0F = this._characteristics[FB0F_UUID];
     var charFA0A = this._characteristics[FA0A_UUID];
@@ -308,16 +308,10 @@ RollingSpiderHelper.prototype = evt({
 
   _discoverServices: function DiscoverServices() {
     var that = this;
-    return this._gatt.discoverServices().then(function onResolve(value) {
-      this._gatt.oncharacteristicchanged =
-        this.onCharacteristicChanged.bind(this);
+    this._gatt.oncharacteristicchanged =
+      this.onCharacteristicChanged.bind(this);
 
-      console.log('gatt client discoverServices:' +
-        ' resolved with value: [' + value + ']');
-      console.log('gatt client found ' + this._gatt.services.length +
-        ' services in total');
-
-      var services = this._gatt.services;
+    function dumpServices(services){
       for(var i = 0; i < services.length; i++) {
         var characteristics = services[i].characteristics;
         console.log('service[' + i + ']' + characteristics.length +
@@ -325,36 +319,45 @@ RollingSpiderHelper.prototype = evt({
         for(var j = 0; j < characteristics.length; j++) {
           var characteristic = characteristics[j];
           var uuid = characteristic.uuid;
-          this._characteristics[uuid] = characteristic;
+          that._characteristics[uuid] = characteristic;
           console.log(uuid);
         }
       }
+    }
 
+    return new Promise(function (resolve, reject){
       function retry() {
         console.log('discover services retry...');
-        setTimeout(that._discoverServices(), 100);
+        setTimeout(wrapper_discoverServices, 100);
       }
 
-      return new Promise(function (resolve, reject){
-        if(that.checkChar()) {
-          var notificationSuccess_FB0E = that.enableNotification(
-            that._characteristics[FB0E_UUID]);
-          var notificationSuccess_FB0F = that.enableNotification(
-            that._characteristics[FB0F_UUID]);
-          if(!notificationSuccess_FB0E || !notificationSuccess_FB0F){
-            retry();
+      function wrapper_discoverServices(){
+        that._gatt.discoverServices().then(function onResolve(){
+          var services = that._gatt.services;
+          dumpServices(services);
+
+          if(that._checkChar()){
+            var notificationSuccess_FB0E = that._enableNotification(
+              that._characteristics[FB0E_UUID]);
+            var notificationSuccess_FB0F = that._enableNotification(
+              that._characteristics[FB0F_UUID]);
+            if(!notificationSuccess_FB0E || !notificationSuccess_FB0F){
+              retry();
+            } else {
+              console.log('discover services success');
+              resolve();
+            }
           } else {
-            console.log('discover services success');
-            resolve();
+            retry();
           }
-        } else {
-          retry();
-        }
-      });
-    }.bind(this), function onReject(reason) {
-      console.log('discoverServices reject: [' + reason + ']');
-      return Promise.reject(reason);
-    }.bind(this));
+        }, function onReject(reason){
+          console.log('discoverServices reject: [' + reason + ']');
+          reject();
+        });
+      }
+
+      wrapper_discoverServices();
+    });
   }
 });
 
