@@ -234,8 +234,8 @@ RollingSpiderHelper.prototype = evt({
     ]);
     characteristic.writeValue(buffer).then(function onResolve(){
       console.log('sendMotorCmd success');
-    }, function onReject(){
-      console.log('sendMotorCmd failed');
+    }, function onReject(reason){
+      console.log('sendMotorCmd failed: ' + reason);
     });
   },
 
