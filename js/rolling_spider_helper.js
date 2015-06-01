@@ -121,11 +121,6 @@ RollingSpiderHelper.prototype = evt({
     }
   },
 
-  readyToGo: function (){
-    this.readyToGo = !this.readyToGo;
-    console.log('ready to go!!! ' + this.readyToGo);
-  },
-
   _findDevice: function(deviceNamePrefix) {
     var that = this;
     // XXX: we should set timeout for rejection
