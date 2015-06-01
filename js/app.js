@@ -24,7 +24,7 @@ function init(clientWidth, clientHeight) {
     baseY: (document.body.clientHeight/2),
     stationaryBase: true,
     limitStickTravel: true,
-    stickRadius: 100,
+    stickRadius: 80,
     mouseSupport  : false
   });
   joystickLeft.addEventListener('touchStart', function(){
@@ -51,7 +51,7 @@ function init(clientWidth, clientHeight) {
     baseY: (document.body.clientHeight/2),
     stationaryBase: true,
     limitStickTravel: true,
-    stickRadius: 100,
+    stickRadius: 80,
     mouseSupport  : false
   });
   joystickRight.addEventListener('touchStart', function(){

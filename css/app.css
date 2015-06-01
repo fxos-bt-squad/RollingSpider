@@ -40,3 +40,7 @@ body {
   height: 25px;
   font-size: 1rem;
 }
+
+#connect, #status {
+  float: right;
+}
