@@ -227,8 +227,10 @@ RollingSpiderHelper.prototype = evt({
       0, 0, 0, 0,
       0, 0, 0, 0
     ]);
+    console.log('_sendMotorCmd: ' + on + ', ' + tilt + ', ' + turn + ', ' + up +
+      ', ' + scale);
     characteristic.writeValue(buffer).then(function onResolve(){
-      console.log('sendMotorCmd success');
+      // console.log('sendMotorCmd success');
     }, function onReject(reason){
       console.log('sendMotorCmd failed: ' + reason);
     });
