@@ -15,14 +15,14 @@
         <link rel="prefetch" type="application/l10n" href="data/locales.ini" />
         <script type="text/javascript" defer src="js/libs/l10n.js"></script>
     </head>
-    <body>
+    <body class="on-joystick-view">
         <section id="joystick-view">
             <div id="joystickArea"></div>
             <div id="info">
                 <div class="left"></div>
                 <div class="right"></div>
             </div>
-            <div id="toolbar">
+            <div class="toolbar">
                 <button id="connect">Connect</button>
                 <button id="to-scripting-view">To Scripting View</button>
                 <button id="takeoff">Take-Off</button>
@@ -36,8 +36,11 @@
             </div>
         </section>
         <section id="scripting-view" class="hidden">
-            <div>
+            <div id="left" class="half">
+                <textarea id="script" rows="20"></textarea></div>
+            <div class="toolbar">
                 <button id="to-joystick-view">Back to Joystick View</button>
+                <button id="run-script">Run script</button>
             </div>
         </section>
     </body>

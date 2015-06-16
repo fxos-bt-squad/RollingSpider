@@ -9,12 +9,22 @@ var App = {
   joystickRight: undefined,
 
   connectButton: document.getElementById('connect'),
-  takeOffButton: document.getElementById('takeoff'),
-  landingButton: document.getElementById('landing'),
   flyingStatusSpan: document.getElementById('flyingStatus'),
   joystickAreaDiv: document.getElementById('joystickArea'),
   leftDebugInfoElem: document.querySelector('#info > .left'),
   rightDebugInfoElem: document.querySelector('#info > .right'),
+
+  viewStatus: document.body.className, // on-joystick-view or on-scripting-view
+  joystickViewSection: document.getElementById('joystick-view'),
+  scriptingViewSection: document.getElementById('scripting-view'),
+
+  buttonIds: [
+    'takeoff',
+    'landing',
+    'to-scripting-view',
+    'to-joystick-view',
+    'run-script'
+  ],
 
   showDebugInfo: function showDebugInfo(tilt, forward, turn, up) {
     this.leftDebugInfoElem.innerHTML = 'tilt:' + tilt +
@@ -100,6 +110,37 @@ var App = {
     }
   },
 
+  handleEvent: function handleEvent(evt) {
+    var targetId = evt.target.id;
+    console.log('click on ' + targetId);
+    switch(targetId) {
+      case 'to-scripting-view':
+      case 'to-joystick-view':
+        this.onViewChange(evt);
+        break;
+      case 'takeOff':
+        this.rsHelper.takeOff();
+        break;
+      case 'landing':
+        this.rsHelper.landing();
+        break;
+      case 'run-script':
+        break;
+    }
+  },
+
+  onViewChange: function onViewChange(evt) {
+    if (this.viewStatus === 'on-joystick-view') {
+      document.body.className = this.viewStatus = 'on-scripting-view';
+      this.joystickViewSection.classList.add('hidden');
+      this.scriptingViewSection.classList.remove('hidden');
+    } else {
+      document.body.className = this.viewStatus = 'on-joystick-view';
+      this.scriptingViewSection.classList.add('hidden');
+      this.joystickViewSection.classList.remove('hidden');
+    }
+  },
+
   init: function init(clientWidth, clientHeight) {
     var that = this;
     console.log("touchscreen is " +
@@ -147,10 +188,10 @@ var App = {
         }
       });
 
-      this.takeOffButton.addEventListener('click',
-        this.rsHelper.takeOff.bind(this.rsHelper));
-      this.landingButton.addEventListener('click',
-        this.rsHelper.landing.bind(this.rsHelper));
+      this.buttonIds.forEach(function(buttonId) {
+        var element = document.getElementById(buttonId);
+        element.addEventListener('click', that);
+      });
 
       /**
        * Flying statuses:
