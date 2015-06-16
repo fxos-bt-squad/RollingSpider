@@ -147,8 +147,10 @@ var App = {
         }
       });
 
-      this.takeOffButton.addEventListener('click', this.rsHelper.takeOff);
-      this.landingButton.addEventListener('click', this.rsHelper.landing);
+      this.takeOffButton.addEventListener('click',
+        this.rsHelper.takeOff.bind(this.rsHelper));
+      this.landingButton.addEventListener('click',
+        this.rsHelper.landing.bind(this.rsHelper));
 
       /**
        * Flying statuses:
