@@ -1,175 +1,182 @@
 /* global console, VirtualJoystick, RollingSpiderHelper */
 'use strict';
 
+var App = {
+  isReady: false,
+
+  rsHelper: undefined,
+  joystickLeft: undefined,
+  joystickRight: undefined,
+
+  connectButton: document.getElementById('connect'),
+  takeOffButton: document.getElementById('takeoff'),
+  landingButton: document.getElementById('landing'),
+  flyingStatusSpan: document.getElementById('flyingStatus'),
+  joystickAreaDiv: document.getElementById('joystickArea'),
+  leftDebugInfoElem: document.querySelector('#info > .left'),
+  rightDebugInfoElem: document.querySelector('#info > .right'),
+
+  showDebugInfo: function showDebugInfo(tilt, forward, turn, up) {
+    this.leftDebugInfoElem.innerHTML = 'tilt:' + tilt +
+      ' <br>forward:' + forward + '<br>' +
+      (this.joystickLeft.right() ? ' right':'') +
+      (this.joystickLeft.up()  ? ' up'   : '') +
+      (this.joystickLeft.left()  ? ' left' : '') +
+      (this.joystickLeft.down()  ? ' down'   : '');
+
+    var eRight = document.querySelector('#info > .right');
+    eRight.innerHTML = 'turn:' + turn +
+      ' <br>up:' + up + '<br>' +
+      (this.joystickRight.right() ? ' right'  : '') +
+      (this.joystickRight.up()  ? ' up'   : '') +
+      (this.joystickRight.left()  ? ' left' : '') +
+      (this.joystickRight.down()  ? ' down'   : '');
+  },
+
+  onJoystickTouch: function(joystick, evt) {
+    switch(evt.type) {
+      case 'touchstart':
+        joystick.onTouch = true;
+        console.log(joystick.location + ' down');
+        break;
+      case 'touchend':
+        joystick.onTouch = false;
+        console.log(joystick.location + ' up');
+        break;
+    }
+  },
+
+  createJoystick: function createJoystick(location) {
+    var that = this;
+    var joystick = new VirtualJoystick({
+      container: this.joystickAreaDiv,
+      strokeStyle: location === 'left' ? 'cyan' : 'orange',
+      baseX: location === 'left' ?
+        (document.body.clientWidth/2)*0.5 : (document.body.clientWidth/2)*1.5,
+      baseY: (document.body.clientHeight/2),
+      stationaryBase: true,
+      limitStickTravel: true,
+      stickRadius: 80,
+      mouseSupport: false
+    });
+    joystick.location = location;
+
+    joystick.addEventListener('touchStart',
+      this.onJoystickTouch.bind(this, joystick));
+    joystick.addEventListener('touchEnd',
+      this.onJoystickTouch.bind(this, joystick));
+    joystick.addEventListener('touchStartValidation', function(event) {
+      var touch = event.changedTouches[0];
+      var notValid = joystick.location === 'left' ?
+        touch.pageX >= window.innerWidth/2 : touch.pageX < window.innerWidth/2;
+
+      if(notValid) {
+        return false;
+      }
+      return true;
+    });
+    return joystick;
+  },
+
+  changeConnectButtonText: function changeConnectButtonText(state) {
+    var elem = this.connectButton;
+    switch (state) {
+      case 'connecting':
+        elem.textContent = 'Connecting';
+        elem.disabled = true;
+        break;
+      case 'discovering-services':
+        elem.textContent = 'Discovering Services...';
+        elem.disabled = true;
+        break;
+      case 'connected':
+        elem.textContent = 'Disconnect';
+        elem.disabled = false;
+        break;
+      case 'disconnect':
+        elem.textContent = 'Connect';
+        elem.disabled = false;
+        break;
+    }
+  },
+
+  init: function init(clientWidth, clientHeight) {
+    var that = this;
+    console.log("touchscreen is " +
+      (VirtualJoystick.touchScreenAvailable() ? "available" : "not available"));
+
+    if (!this.isReady) {
+      this.joystickLeft = this.createJoystick('left');
+      this.joystickRight = this.createJoystick('right');
+      this.rsHelper = new RollingSpiderHelper();
+
+      window.setInterval(function() {
+        var tilt = that.joystickLeft.onTouch ?
+          Math.round(that.joystickLeft.deltaX()) : 0;
+        var forward = that.joystickLeft.onTouch ?
+          Math.round(that.joystickLeft.deltaY() * -1) : 0;
+        var turn = that.joystickRight.onTouch ?
+          Math.round(that.joystickRight.deltaX()) : 0;
+        var up = that.joystickRight.onTouch ?
+          Math.round(that.joystickRight.deltaY() * -1) : 0;
+
+        that.showDebugInfo(tilt, forward, turn, up);
+        that.rsHelper.motors(true, tilt, forward, turn, up, 0, 2);
+      }, 50);
+
+      // XXX
+      ['connecting', 'discovering-services', 'connected', 'disconnect'].forEach(
+          function(eventName) {
+        that.rsHelper.on(eventName, function() {
+          that.changeConnectButtonText(eventName);
+        });
+      });
+      this.connectButton.addEventListener('click', function() {
+        if (that.rsHelper.isAbleToConnect()) {
+          that.rsHelper.connect().then(function onResolve() {
+            that.changeConnectButtonText('connected');
+          }, function onReject() {
+            that.changeConnectButtonText('disconnect');
+          });
+        } else {
+          that.rsHelper.disconnect().then(function onResolve() {
+            that.changeConnectButtonText('disconnect');
+          }, function onReject() {
+            // XXX
+          });
+        }
+      });
+
+      this.takeOffButton.addEventListener('click', this.rsHelper.takeOff);
+      this.landingButton.addEventListener('click', this.rsHelper.landing);
+
+      /**
+       * Flying statuses:
+       *
+       * 0: Landed
+       * 1: Taking off
+       * 2: Hovering
+       * 3: ??
+       * 4: Landing
+       * 5: Emergency / Cut out
+       */
+      ['fsLanded', 'fsTakingOff', 'fsHovering','fsUnknown', 'fsLanding',
+        'fsCutOff'].forEach(function(eventName) {
+        that.rsHelper.on(eventName, function (eventName) {
+          that.flyingStatusSpan.textContent = eventName;
+        });
+      });
+
+      this.isReady = true;
+    }
+  }
+};
+
 window.addEventListener('resize', function ResizeHandler() {
   var width = document.body.clientWidth;
   var height = document.body.clientHeight;
   if (width >= height) {
     window.removeEventListener('resize', ResizeHandler);
-    init(width, height);
+    App.init(width, height);
   }
 });
-
-function init(clientWidth, clientHeight) {
-  console.log("touchscreen is " +
-    (VirtualJoystick.touchScreenAvailable() ? "available" : "not available"));
-
-  var touchLeftJoy = false, touchRightJoy = false;
-
-  var joystickLeft  = new VirtualJoystick({
-    container : document.getElementById('joystickArea'),
-    strokeStyle	: 'cyan',
-    // at middle of left side.
-    baseX: (document.body.clientWidth/2)*0.5,
-    baseY: (document.body.clientHeight/2),
-    stationaryBase: true,
-    limitStickTravel: true,
-    stickRadius: 80,
-    mouseSupport  : false
-  });
-  joystickLeft.addEventListener('touchStart', function(){
-    touchLeftJoy = true;
-    console.log('L down');
-  });
-  joystickLeft.addEventListener('touchEnd', function(){
-    touchLeftJoy = false;
-    console.log('L up');
-  });
-  joystickLeft.addEventListener('touchStartValidation', function(event){
-    var touch	= event.changedTouches[0];
-    if( touch.pageX >= window.innerWidth/2 ){
-      return false;
-    }
-    return true;
-  });
-
-  var joystickRight  = new VirtualJoystick({
-    container : document.getElementById('joystickArea'),
-    strokeStyle	: 'orange',
-    // at middle of right side.
-    baseX: (document.body.clientWidth/2)*1.5,
-    baseY: (document.body.clientHeight/2),
-    stationaryBase: true,
-    limitStickTravel: true,
-    stickRadius: 80,
-    mouseSupport  : false
-  });
-  joystickRight.addEventListener('touchStart', function(){
-    touchRightJoy = true;
-    console.log('R down');
-  });
-  joystickRight.addEventListener('touchEnd', function(){
-    touchRightJoy = false;
-    console.log('R up');
-  });
-  joystickRight.addEventListener('touchStartValidation', function(event){
-    var touch	= event.changedTouches[0];
-    if( touch.pageX < window.innerWidth/2 ){
-      return false;
-    }
-    return true;
-  });
-
-  function showDebugInfo(tilt, forward, turn, up){
-    var eLeft = document.querySelector('#info > .left');
-    eLeft.innerHTML = 'tilt:' + tilt +
-      ' <br>forward:' + forward + '<br>' +
-      (joystickLeft.right() ? ' right':'') +
-      (joystickLeft.up()  ? ' up'   : '') +
-      (joystickLeft.left()  ? ' left' : '') +
-      (joystickLeft.down()  ? ' down'   : '');
-
-    var eRight = document.querySelector('#info > .right');
-    eRight.innerHTML = 'turn:' + turn +
-      ' <br>up:' + up + '<br>' +
-      (joystickRight.right() ? ' right'  : '') +
-      (joystickRight.up()  ? ' up'   : '') +
-      (joystickRight.left()  ? ' left' : '') +
-      (joystickRight.down()  ? ' down'   : '');
-  }
-
-  setInterval(function(){
-    var tilt = touchLeftJoy ? Math.round(joystickLeft.deltaX()) : 0;
-    var forward = touchLeftJoy ? Math.round(joystickLeft.deltaY() * -1) : 0;
-    var turn = touchRightJoy ? Math.round(joystickRight.deltaX()) : 0;
-    var up = touchRightJoy ? Math.round(joystickRight.deltaY() * -1) : 0;
-
-    showDebugInfo(tilt, forward, turn, up);
-    rsHelper.motors(true, tilt, forward, turn, up, 0, 2);
-  }, 50);
-
-  var rsHelper = new RollingSpiderHelper();
-
-  var connectButton = document.getElementById('connect');
-  var changeConnectButtonText = function(state) {
-    switch (state) {
-      case 'connecting':
-        connectButton.textContent = 'Connecting';
-        connectButton.disabled = true;
-        break;
-      case 'discovering-services':
-        connectButton.textContent = 'Discovering Services...';
-        connectButton.disabled = true;
-        break;
-      case 'connected':
-        connectButton.textContent = 'Disconnect';
-        connectButton.disabled = false;
-        break;
-      case 'disconnect':
-        connectButton.textContent = 'Connect';
-        connectButton.disabled = false;
-        break;
-    }
-  };
-  // XXX
-  ['connecting', 'discovering-services', 'connected', 'disconnect'].forEach(
-      function(eventName) {
-    rsHelper.on(eventName, function() {
-      changeConnectButtonText(eventName);
-    });
-  });
-  connectButton.addEventListener('click', function() {
-    if (rsHelper.isAbleToConnect()) {
-      rsHelper.connect().then(function onResolve() {
-        changeConnectButtonText('connected');
-      }, function onReject() {
-        changeConnectButtonText('disconnect');
-      });
-    } else {
-      rsHelper.disconnect().then(function onResolve() {
-        changeConnectButtonText('disconnect');
-      }, function onReject() {
-        // XXX
-      });
-    }
-  });
-
-  var elTakeOff = document.getElementById('takeoff');
-  elTakeOff.onclick = function (){
-    rsHelper.takeOff();
-  };
-
-  var elLanding = document.getElementById('landing');
-  elLanding.onclick = function (){
-    rsHelper.landing();
-  };
-
-  var flyingStatusHandler = function (eventName){
-    document.getElementById('flyingStatus').textContent = eventName;
-  };
-
-  /**
-   * Flying statuses:
-   *
-   * 0: Landed
-   * 1: Taking off
-   * 2: Hovering
-   * 3: ??
-   * 4: Landing
-   * 5: Emergency / Cut out
-   */
-  ['fsLanded', 'fsTakingOff', 'fsHovering','fsUnknown', 'fsLanding',
-    'fsCutOff'].forEach(function(eventName){
-    rsHelper.on(eventName, flyingStatusHandler.bind(this, eventName));
-  });
-}

@@ -44,3 +44,7 @@ body {
 #connect, #status {
   float: right;
 }
+
+.hidden {
+  display: none;
+}
