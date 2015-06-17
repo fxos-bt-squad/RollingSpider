@@ -47,7 +47,7 @@ RollingSpiderHelper.prototype = evt({
     return this._stateManager.isAbleToConnect();
   },
 
-  isAbleToDisconnect: function() {
+  isConnected: function() {
     // XXX: we should be able to disconnect when
     // state = StateManager.STATES.CONNECTING
     return this._stateManager.isConnected();
@@ -227,8 +227,8 @@ RollingSpiderHelper.prototype = evt({
       0, 0, 0, 0,
       0, 0, 0, 0
     ]);
-    console.log('_sendMotorCmd: ' + on + ', ' + tilt + ', ' + turn + ', ' + up +
-      ', ' + scale);
+    console.log('_sendMotorCmd: ' + on + ', ' + tilt + ', ' + forward + ', ' +
+      turn + ', ' + up + ', ' + scale);
     characteristic.writeValue(buffer).then(function onResolve(){
       // console.log('sendMotorCmd success');
     }, function onReject(reason){

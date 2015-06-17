@@ -8,6 +8,7 @@
         <link rel="stylesheet" href="css/app.css">
         <script defer src="bower_components/virtualjoystick.js/virtualjoystick.js"></script>
         <script defer src="bower_components/evt/index.js"></script>
+        <script defer src="bower_components/csv-js/csv.js"></script>
         <script defer src="js/state_manager.js"></script>
         <script defer src="js/rolling_spider_helper.js"></script>
         <script defer src="js/app.js"></script>
@@ -36,11 +37,23 @@
             </div>
         </section>
         <section id="scripting-view" class="hidden">
-            <div id="left" class="half">
-                <textarea id="script" rows="20"></textarea></div>
+            <div class="left half">
+                <textarea id="script" rows="20"></textarea>
+            </div>
+            <div class="right half">
+                <div>
+                    <label for="gist-id">Gist id:</label>
+                    <input id="gist-id" type="text" />
+                </div>
+                <div>
+                    <button id="import-script">Import script from Gist</button>
+                    <button id="load-demo-script">Load demo Script</button>
+                </div>
+            </div>
             <div class="toolbar">
                 <button id="to-joystick-view">Back to Joystick View</button>
                 <button id="run-script">Run script</button>
+
             </div>
         </section>
     </body>
