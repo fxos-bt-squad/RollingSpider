@@ -1,3 +1,4 @@
+/* globals Constants */
 (function(exports) {
   'use strict';
   var ScriptRunner = function() {
@@ -56,7 +57,7 @@
 
     run: function() {
       if (this._tasks.length > 0 && this._rsHelper.isAbleToConnect()) {
-        this._rsHelper.connect({address: 'a0:14:3d:29:d3:f0'}).then(function() {
+        this._rsHelper.connect({addresses: Constants.RS_ADDRESSES}).then(function() {
           // on resolve
           this._intervalId =
             window.setInterval(this.onEachTask.bind(this), this._timeout);

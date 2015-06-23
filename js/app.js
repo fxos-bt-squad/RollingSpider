@@ -1,4 +1,4 @@
-/* global console, VirtualJoystick, RollingSpiderHelper, CSV */
+/* globals console, VirtualJoystick, RollingSpiderHelper, CSV, Constants */
 'use strict';
 
 var App = {
@@ -247,7 +247,7 @@ var App = {
       });
       this.connectButton.addEventListener('click', function() {
         if (that.rsHelper.isAbleToConnect()) {
-          that.rsHelper.connect({address: 'a0:14:3d:29:d3:f0'}).then(function onResolve() {
+          that.rsHelper.connect({addresses: Constants.RS_ADDRESSES}).then(function onResolve() {
             that.changeConnectButtonText('connected');
           }, function onReject() {
             that.changeConnectButtonText('disconnect');
