@@ -184,7 +184,7 @@ var App = {
       case 'to-joystick-view':
         this.changeView();
         break;
-      case 'takeOff':
+      case 'takeoff':
         this.rsHelper.takeOff();
         break;
       case 'landing':
