@@ -15,6 +15,15 @@ function RollingSpiderHelper() {
 
 RollingSpiderHelper.prototype = evt({
 
+  _device: undefined,
+
+  getDeviceAddress: function() {
+    if (this._device) {
+      return this._device.address
+    }
+    return 'unknown device';
+  },
+
   isAbleToConnect: function() {
     return this._stateManager.isAbleToConnect();
   },

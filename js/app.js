@@ -125,6 +125,7 @@ var App = {
       case 'connected':
         elem.textContent = 'Disconnect';
         elem.disabled = false;
+        this.bluetoothInfoElem.textContent = this.rsHelper.getDeviceAddress();
         break;
       case 'disconnect':
         elem.textContent = 'Connect';
