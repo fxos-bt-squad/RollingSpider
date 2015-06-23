@@ -1,34 +1,6 @@
-/* global StateManager, evt, console, Promise */
+/* globals StateManager, evt, console, Promise, SharedUtils, PipedPromise,
+          Constants */
 'use strict';
-
-var CCCD_UUID = '00002902-0000-1000-8000-00805f9b34fb';
-var FA0A_UUID = '9a66fa0a-0800-9191-11e4-012d1540cb8e';
-var FA0B_UUID = '9a66fa0b-0800-9191-11e4-012d1540cb8e';
-var FA0C_UUID = '9a66fa0c-0800-9191-11e4-012d1540cb8e';
-var FB0E_UUID = '9a66fb0e-0800-9191-11e4-012d1540cb8e';
-var FB0F_UUID = '9a66fb0f-0800-9191-11e4-012d1540cb8e';
-
-function ab2str(buf) {
-  var result = '';
-  var array = new Uint8Array(buf);
-  for(var i = 0; i<array.length; i++){
-    result += Number(array[i]) + ',';
-  }
-  return result;
-}
-
-function convertFloat2Bytes(floatValue){
-  var buffer = new ArrayBuffer(8);
-  var intView = new Uint8Array(buffer);
-  var floatView = new Float64Array(buffer);
-  floatView[0] = floatValue;
-/*
-  for(var i = 0; i < 8; i++){
-    console.log(intView[i].toString(2));
-  }
-*/
-  return intView;
-}
 
 function RollingSpiderHelper() {
   this._manager = navigator.mozBluetooth;
@@ -47,22 +19,23 @@ RollingSpiderHelper.prototype = evt({
     return this._stateManager.isAbleToConnect();
   },
 
-  isAbleToDisconnect: function() {
+  isConnected: function() {
     // XXX: we should be able to disconnect when
     // state = StateManager.STATES.CONNECTING
     return this._stateManager.isConnected();
   },
 
-  connect: function (deviceNamePrefix) {
-    var prefix = deviceNamePrefix || 'RS_';
+  connect: function (options) {
+    var prefix = options.deviceNamePrefix || 'RS_';
+    var addresses = options.addresses;
     var that = this;
     if (this._stateManager.isAbleToConnect()) {
       this.fire('connecting');
       return new Promise(function(resolve, reject) {
         that.fire('scanning-start');
         that._startScan().then(function(/* handle */) {
-          that.fire('finding-device', {prefix: prefix});
-          return that._findDevice(prefix);
+          that.fire('finding-device', {prefix: prefix, addresses: addresses});
+          return that._findDevice({deviceNamePrefix: prefix, addresses: addresses});
         }).then(function(device) {
           that.fire('scanning-stop');
           device.gatt.onconnectionstatechanged =
@@ -121,13 +94,18 @@ RollingSpiderHelper.prototype = evt({
     }
   },
 
-  _findDevice: function(deviceNamePrefix) {
+  _findDevice: function(options) {
+    var namePrefix = options.deviceNamePrefix;
+    var addresses = options.addresses || [];
     var that = this;
     // XXX: we should set timeout for rejection
     return new Promise(function(resolve, reject) {
       var onGattDeviceFount = function(evt) {
         var device = evt.device;
-        if(device.name.startsWith(deviceNamePrefix) && !that._isGattConnected) {
+        console.log('found ' + device.name + ': ' + device.address);
+        if(!that._isGattConnected &&
+            (device.name.startsWith(namePrefix) ||
+              addresses.indexOf(device.address) > -1)) {
           that._device = device;
           that._gatt = device.gatt;
           resolve(evt.device);
@@ -160,8 +138,9 @@ RollingSpiderHelper.prototype = evt({
   },
 
   takeOff: function TakeOff() {
+    console.log('invoke takeOff');
     if (this._stateManager.isConnected()) {
-      var characteristic = this._characteristics[FA0B_UUID];
+      var characteristic = this._characteristics[Constants.CHARACTERISTICS.FA0B];
 
       // 4, (byte)mSettingsCounter, 2, 0, 1, 0
       var buffer = new ArrayBuffer(6);
@@ -177,7 +156,7 @@ RollingSpiderHelper.prototype = evt({
 
   landing: function Landing() {
     if (this._stateManager.isConnected()) {
-      var characteristic = this._characteristics[FA0B_UUID];
+      var characteristic = this._characteristics[Constants.CHARACTERISTICS.FA0B];
 
       // 4, (byte)mSettingsCounter, 2, 0, 3, 0
       var buffer = new ArrayBuffer(6);
@@ -192,7 +171,7 @@ RollingSpiderHelper.prototype = evt({
   },
 
   emergencyStop: function EmergencyStop(){
-    var characteristic = this._characteristics[FA0C_UUID];
+    var characteristic = this._characteristics[Constants.CHARACTERISTICS.FA0C];
 
     // 4, (byte)mSettingsCounter, 2, 0, 4, 0
     var buffer = new ArrayBuffer(6);
@@ -206,7 +185,7 @@ RollingSpiderHelper.prototype = evt({
   },
 
   _sendMotorCmd: function SendMotorCmd(on, tilt, forward, turn, up, scale){
-    var characteristic = this._characteristics[FA0A_UUID];
+    var characteristic = this._characteristics[Constants.CHARACTERISTICS.FA0A];
     if(!characteristic || !this.readyToGo) return;
 
     var buffer = new ArrayBuffer(19);
@@ -227,10 +206,10 @@ RollingSpiderHelper.prototype = evt({
       0, 0, 0, 0,
       0, 0, 0, 0
     ]);
-    console.log('_sendMotorCmd: ' + on + ', ' + tilt + ', ' + turn + ', ' + up +
-      ', ' + scale);
-    characteristic.writeValue(buffer).then(function onResolve(){
+    this._writeValuePromise(characteristic, buffer).then(function onResolve(){
       // console.log('sendMotorCmd success');
+      console.log('_sendMotorCmd: ' + on + ', ' + tilt + ', ' + forward + ', ' +
+        turn + ', ' + up + ', ' + scale);
     }, function onReject(reason){
       console.log('sendMotorCmd failed: ' + reason);
     });
@@ -243,7 +222,15 @@ RollingSpiderHelper.prototype = evt({
     return true;
   },
 
-  _enableNotification: function EnableNotification(characteristic){
+  _writeValuePromise: function _writeValuePromise(target, buffer) {
+    return this._getPipedPromise('_writeValuePromise',
+      function(resolve, reject) {
+        return target.writeValue(buffer).then(resolve).catch(reject);
+      });
+  },
+
+  _enableNotification: function EnableNotification(characteristic) {
+    var that = this;
     var success = false;
     characteristic.startNotifications().then(function onResolve(){
       console.log('enableNotification for ' +
@@ -257,12 +244,12 @@ RollingSpiderHelper.prototype = evt({
       var descriptor = characteristic.descriptors[i];
       console.log('Descriptor CCCD uuid:' + descriptor.uuid);
       console.log('Descriptor CCCD value:' + descriptor.value);
-      if (descriptor.uuid === CCCD_UUID) {
+      if (descriptor.uuid === Constants.CHARACTERISTICS.CCCD) {
         console.log('CCCD found');
         var buffer = new ArrayBuffer(2);
         var array = new Uint8Array(buffer);
         array.set([0x01, 0x00]);
-        descriptor.writeValue(buffer);
+        that._writeValuePromise(descriptor, buffer);
         success = true;
       }
     }
@@ -273,10 +260,10 @@ RollingSpiderHelper.prototype = evt({
     var characteristic = evt.characteristic;
     var value = characteristic.value;
     console.log('The value of characteristic (uuid:' +
-      characteristic.uuid + ') changed to ' + ab2str(value));
+      characteristic.uuid + ') changed to ' + SharedUtils.ab2str(value));
 
     switch(characteristic.uuid){
-      case FB0E_UUID:
+      case Constants.CHARACTERISTICS.FB0E:
         var eventList = ['fsLanded', 'fsTakingOff', 'fsHovering',
           'fsUnknown', 'fsLanding', 'fsCutOff'];
         var array = new Uint8Array(value);
@@ -287,18 +274,18 @@ RollingSpiderHelper.prototype = evt({
         }
         this.fire(eventList[array[6]]);
         break;
-      case FB0F_UUID:
-        console.log('Battery: ' + ab2str(value));
+      case Constants.CHARACTERISTICS.FB0F:
+        console.log('Battery: ' + SharedUtils.ab2str(value));
         break;
     }
   },
 
   _checkChar: function (){
-    var charFB0E = this._characteristics[FB0E_UUID];
-    var charFB0F = this._characteristics[FB0F_UUID];
-    var charFA0A = this._characteristics[FA0A_UUID];
-    var charFA0B = this._characteristics[FA0B_UUID];
-    var charFA0C = this._characteristics[FA0C_UUID];
+    var charFB0E = this._characteristics[Constants.CHARACTERISTICS.FB0E];
+    var charFB0F = this._characteristics[Constants.CHARACTERISTICS.FB0F];
+    var charFA0A = this._characteristics[Constants.CHARACTERISTICS.FA0A];
+    var charFA0B = this._characteristics[Constants.CHARACTERISTICS.FA0B];
+    var charFA0C = this._characteristics[Constants.CHARACTERISTICS.FA0C];
 
     return charFB0E && charFB0F && charFA0A && charFA0B && charFA0C;
   },
@@ -335,9 +322,9 @@ RollingSpiderHelper.prototype = evt({
 
           if(that._checkChar()){
             var notificationSuccess_FB0E = that._enableNotification(
-              that._characteristics[FB0E_UUID]);
+              that._characteristics[Constants.CHARACTERISTICS.FB0E]);
             var notificationSuccess_FB0F = that._enableNotification(
-              that._characteristics[FB0F_UUID]);
+              that._characteristics[Constants.CHARACTERISTICS.FB0F]);
             if(!notificationSuccess_FB0E || !notificationSuccess_FB0F){
               retry();
             } else {
@@ -358,3 +345,4 @@ RollingSpiderHelper.prototype = evt({
   }
 });
 
+SharedUtils.addMixin(RollingSpiderHelper, new PipedPromise());
