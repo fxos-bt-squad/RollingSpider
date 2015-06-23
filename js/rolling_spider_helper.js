@@ -1,4 +1,4 @@
-/* global StateManager, evt, console, Promise */
+/* global StateManager, evt, console, Promise, SharedUtils, PipedPromise */
 'use strict';
 
 var CCCD_UUID = '00002902-0000-1000-8000-00805f9b34fb';
@@ -165,6 +165,7 @@ RollingSpiderHelper.prototype = evt({
   },
 
   takeOff: function TakeOff() {
+    console.log('invoke takeOff');
     if (this._stateManager.isConnected()) {
       var characteristic = this._characteristics[FA0B_UUID];
 
@@ -248,7 +249,15 @@ RollingSpiderHelper.prototype = evt({
     return true;
   },
 
-  _enableNotification: function EnableNotification(characteristic){
+  _writeValuePromise: function _writeValuePromise(descriptor, buffer) {
+    return this._getPipedPromise('_writeValuePromise',
+      function(resolve, reject) {
+        return descriptor.writeValue(buffer).then(resolve).catch(reject);
+      });
+  },
+
+  _enableNotification: function EnableNotification(characteristic) {
+    var that = this;
     var success = false;
     characteristic.startNotifications().then(function onResolve(){
       console.log('enableNotification for ' +
@@ -267,7 +276,7 @@ RollingSpiderHelper.prototype = evt({
         var buffer = new ArrayBuffer(2);
         var array = new Uint8Array(buffer);
         array.set([0x01, 0x00]);
-        descriptor.writeValue(buffer);
+        that._writeValuePromise(descriptor, buffer);
         success = true;
       }
     }
@@ -363,3 +372,4 @@ RollingSpiderHelper.prototype = evt({
   }
 });
 
+SharedUtils.addMixin(RollingSpiderHelper, new PipedPromise());
