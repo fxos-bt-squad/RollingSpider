@@ -41,6 +41,11 @@ button, input[type="text"], textarea {
   float: right;
 }
 
+#info > .center {
+  position: absolute;
+  left: 40%;
+}
+
 .toolbar {
   width: 100%;
   position: absolute;

@@ -53,16 +53,17 @@ RollingSpiderHelper.prototype = evt({
     return this._stateManager.isConnected();
   },
 
-  connect: function (deviceNamePrefix) {
-    var prefix = deviceNamePrefix || 'RS_';
+  connect: function (options) {
+    var prefix = options.deviceNamePrefix || 'RS_';
+    var address = options.address;
     var that = this;
     if (this._stateManager.isAbleToConnect()) {
       this.fire('connecting');
       return new Promise(function(resolve, reject) {
         that.fire('scanning-start');
         that._startScan().then(function(/* handle */) {
-          that.fire('finding-device', {prefix: prefix});
-          return that._findDevice(prefix);
+          that.fire('finding-device', {prefix: prefix, address: address});
+          return that._findDevice({deviceNamePrefix: prefix, address: address});
         }).then(function(device) {
           that.fire('scanning-stop');
           device.gatt.onconnectionstatechanged =
@@ -121,13 +122,17 @@ RollingSpiderHelper.prototype = evt({
     }
   },
 
-  _findDevice: function(deviceNamePrefix) {
+  _findDevice: function(options) {
+    var namePrefix = options.deviceNamePrefix;
+    var address = options.address;
     var that = this;
     // XXX: we should set timeout for rejection
     return new Promise(function(resolve, reject) {
       var onGattDeviceFount = function(evt) {
         var device = evt.device;
-        if(device.name.startsWith(deviceNamePrefix) && !that._isGattConnected) {
+        console.log('found ' + device.name + ': ' + device.address);
+        if(!that._isGattConnected &&
+            (device.name.startsWith(namePrefix) || device.address === address)) {
           that._device = device;
           that._gatt = device.gatt;
           resolve(evt.device);

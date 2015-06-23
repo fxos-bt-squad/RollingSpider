@@ -15,6 +15,7 @@ var App = {
   joystickAreaDiv: document.getElementById('joystickArea'),
   leftDebugInfoElem: document.querySelector('#info > .left'),
   rightDebugInfoElem: document.querySelector('#info > .right'),
+  bluetoothInfoElem: document.querySelector('#info > .center'),
   gistIdElem: document.getElementById('gist-id'),
   scriptElem: document.getElementById('script'),
 
@@ -223,15 +224,18 @@ var App = {
       this.rsHelper = new RollingSpiderHelper();
 
       // XXX
-      ['connecting', 'discovering-services', 'connected', 'disconnect'].forEach(
+      ['connecting', 'discovering-services', 'connected', 'disconnect',
+        'scanning-start', 'finding-device', 'scanning-stop',
+        'gatt-connecting'].forEach(
           function(eventName) {
         that.rsHelper.on(eventName, function() {
           that.changeConnectButtonText(eventName);
+          that.bluetoothInfoElem.textContent = eventName;
           switch(eventName) {
             case 'connected':
               // start monitoring joystick movement when there is connection
               that._intervalId =
-                window.setInterval(that.monitorJoystickMovement.bind(this), 50);
+                window.setInterval(that.monitorJoystickMovement.bind(that), 50);
               break;
             case 'disconnect':
               // stop monitoring joystick movement when disconnect
@@ -243,7 +247,7 @@ var App = {
       });
       this.connectButton.addEventListener('click', function() {
         if (that.rsHelper.isAbleToConnect()) {
-          that.rsHelper.connect().then(function onResolve() {
+          that.rsHelper.connect({address: 'a0:14:3d:29:d3:f0'}).then(function onResolve() {
             that.changeConnectButtonText('connected');
           }, function onReject() {
             that.changeConnectButtonText('disconnect');
