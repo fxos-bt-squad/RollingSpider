@@ -28,6 +28,7 @@ var App = {
   buttonIds: [
     'takeoff',
     'landing',
+    'frontFlip',
     'to-scripting-view',
     'to-joystick-view',
     'run-script',
@@ -190,6 +191,9 @@ var App = {
         break;
       case 'landing':
         this.rsHelper.landing();
+        break;
+      case 'frontFlip':
+        this.rsHelper.frontFlip();
         break;
       case 'import-script':
         this.importScript();
