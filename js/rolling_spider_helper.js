@@ -19,7 +19,7 @@ RollingSpiderHelper.prototype = evt({
 
   getDeviceAddress: function() {
     if (this._device) {
-      return this._device.address
+      return this._device.address;
     }
     return 'unknown device';
   },
