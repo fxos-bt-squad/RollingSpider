@@ -179,6 +179,22 @@ RollingSpiderHelper.prototype = evt({
     }
   },
 
+  frontFlip: function FrontFlip() {
+    if (this._stateManager.isConnected()) {
+      var characteristic = this._characteristics[Constants.CHARACTERISTICS.FA0B];
+
+      // 4, (byte)mSettingsCounter, 2, 4, 0, 0, 0, 0, 0, 0
+      var buffer = new ArrayBuffer(10);
+      var array = new Uint8Array(buffer);
+      array.set([4, this._settingsCounter++, 2, 4, 0, 0, 0, 0, 0, 0]);
+      characteristic.writeValue(buffer).then(function onResolve(){
+        console.log('frontFlip success');
+      }, function onReject(){
+        console.log('frontFlip failed');
+      });
+    }
+  },
+
   emergencyStop: function EmergencyStop(){
     var characteristic = this._characteristics[Constants.CHARACTERISTICS.FA0C];
 
